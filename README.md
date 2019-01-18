@@ -13,7 +13,7 @@ the speed of execution of specfic algorithms such as bootstrapping, jacknifing a
 could be accellarated by utilizing a computing cluster. `paralellize` would help researchers 
 in parallelizing their analyses and submitting jobs to the computing cluster at Boston College.
 
-We will post more details on our development effort as they become avaialble! 
+We will post more details on our development effort as they become available! 
 
 Stay tuned!
 
