@@ -1,5 +1,5 @@
 ********************************************************************************
-*** Paralellize 
+*** Parallelize 
 ********************************************************************************
 **
 **
@@ -15,7 +15,7 @@ capture program drop mytest
 program define mytest
 	syntax newvarname, Command(string asis)
 	clear all
-	if "`c(prefix)'" == "paralellize" {
+	if "`c(prefix)'" == "parallelize" {
 		set obs 10
 		gen x = rnormal()
 	}
@@ -29,10 +29,10 @@ end
 
 
 ***This is a prefix program (just like bootstrap, mi, xi, etc)
-capture program drop paralellize
-program define paralellize, eclass
+capture program drop parallelize
+program define parallelize, eclass
 
-	set prefix paralellize
+	set prefix parallelize
 	
 	_on_colon_parse `0'
 	
