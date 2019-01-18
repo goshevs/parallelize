@@ -48,8 +48,9 @@ program define parallelize, eclass
 	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
 	
-	*** Here we need machinary to farm out the work and then collect it; we need
-	*** a message exchange interface; api to data storage system
+	*** Here we need machinery to farm out the work and collect results; we need
+	*** a message exchange interface for the user; need api functionality for 
+	*** pulling and pushing data
 	
 	*** Execute the command
 	`command'
