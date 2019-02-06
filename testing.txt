@@ -1,3 +1,5 @@
 This is a test of git command line. 
 
 And here's another change. 
+
+Let's see how this other change works. 
