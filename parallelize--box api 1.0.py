@@ -1,5 +1,5 @@
 from boxsdk import OAuth2, Client
-# from boxsdk.pagination.box_object_collection import BoxObjectCollection
+
 
 auth = OAuth2(
     client_id='<>',
