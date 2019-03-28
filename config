@@ -1,11 +1,9 @@
 [cluster1]
 host=cluster1.mydomain.edu
 username=goshev
-password=12345
 port=22
 
 [cluster2]
 host=cluster2.mydomain.edu
 username=goshevs
-password=123
 port=60

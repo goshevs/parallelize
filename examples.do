@@ -1,31 +1,42 @@
 *** Examples
 
-local pathToAdos "~/Desktop/gitProjects/parallelize"
+local pathBasename "~/Desktop/gitProjects/parallelize"
 
 *** Load the ado's
-do "`pathToAdos'/myTestCommand.ado"
-do "`pathToAdos'/parallelize.ado"
+do "`pathBasename'/myTestCommand.ado"
+do "`pathBasename'/parallelize.ado"
 
 
 *** Behavior under parallelize
-*parallelize, con(sshHost="sirius"): mytest myvar, c(sum)
+*parallelize, con(sshHost="cluster1"): mytest myvar, c(sum)
 
 *** Define locations
+local locConf "`pathBasename'/config1"
+local locData "c:/Users/goshev/Desktop/gitProjects/parallelize/myData.dta"  // full path is required (for scp)
+local locProg "https://raw.githubusercontent.com/goshevs/parallelize/devel/mytest.ado"
 
-local locConf "~/Desktop/gitProjects/parallelize/config"
-local locData "~/Desktop/myTestData.dta"
-local locProg "https://raw.githubusercontent.com/goshevs/pchained/master/pchained.ado"
 
+*** Generate data
+do "`pathBasename'/simdata.do"
+save "`pathBasename'/myData", replace
+clear
+
+
+*** Run code
 noi parallelize,  /// 
-        con(configFile = "`locConf'"  profile="cluster1") ///
+        con(sshHost="sirius") /// con(configFile = "`locConf'"  profile="sirius") ///  
         job(nodes="1" ppn="1" walltime="00:10:00" jobname="myTest")  ///
-		data(file= "`locData'" loc="local") ///
-		exec(nrep="10" pURL = "`locProg'"): ///
-        mytest myvar, c(sum)
+        data(file= "`locData'" loc="local") ///
+        exec(nrep="10" pURL = "`locProg'"): mytest x1, c(mean)
 
 sreturn list
 
 exit
 
 *** Behavior on its own
-mytest myvar, c(sum)
+* mytest myvar, c(sum)
+
+*
+* con(configFile = "`locConf'"  profile="cluster1") ///
+        
+		  con(configFile = "`locConf'"  profile="sirius") ///
