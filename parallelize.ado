@@ -201,7 +201,7 @@ program define _transferAndSubmit, sclass
 	file write `scriptHandle' "echo '`jobWork'' > ~/`remoteDir'/_workJob.do;"
 	file write `scriptHandle' "wget https://raw.githubusercontent.com/goshevs/parallelize/devel/_runBundle.do -P ./`remoteDir'/; "
 	file write `scriptHandle' "cd `remoteDir' && "
-	file write `scriptHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b _runBundle.do master `remoteDir' `nrep' && "
+	file write `scriptHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b _runBundle.do master ~/`remoteDir' `nrep' && "
 	file write `scriptHandle' "echo 'Done!'"
 	file close `scriptHandle'
 
