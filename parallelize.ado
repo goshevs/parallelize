@@ -63,7 +63,7 @@ program define parallelize, eclass
 		}
 	}
 	
-	*** Parse data specs
+	*** Parse DATA specs
 	_parseSpecs `"`dataspecs'"'
 	
 	*** <><><> Collect and check user input
@@ -77,7 +77,7 @@ program define parallelize, eclass
 		}
 	}
 		
-	*** Parse exec specs
+	*** Parse EXEC specs
 	_parseSpecs `"`execspecs'"'
 	
 	*** <><><> Collect and check user input
@@ -91,21 +91,29 @@ program define parallelize, eclass
 		}
 	}
 	
+	local url "`s(pURL)'"
 	
 	*** Compose and transfer content to remote machine
 	tempname remoteDir    // directory on remote machine
+	_transfer2Cluster "`host'" "`remoteDir'" `"`file'"'
 	
-	_remoteBundle "`host'" "`remoteDir'" `"`command'"' `"`file'"' "`loc'"
+	*** Set up the location of the data
+	if "`dloc'" == "local" {
+		if regexm("`dfile'", "^(.+/)*(.+)$") {
+			local fName `=regexs(2)'
+		}
+		local dataLoc "~/`remoteDir'/`fName'"
+	}
+	else if "`dloc'" == "cluster" {
+		local dataLoc "`dfile'"
+	}
+	else {
+		*** BOX ***
+	}
 	
+	*** Submit all jobs
+	ssh `host' "cd `remoteDir' && module load stata/15 && stata-mp -b _runBundle.do master `remoteDir' `nrep' 0 `dataLoc' '`command'' `url'"
 	
-	*** Write and launch the submit files
-	
-	
-	
-
-	
-	 
-			
 	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
 	
@@ -163,39 +171,10 @@ end
 	
 	
 *** Writing files and sending them to the remote machine
-capture program drop _remoteBundle
-program define _remoteBundle, sclass
+capture program drop _transfer2Cluster
+program define _transfer2Cluster, sclass
 
-	args host remoteDir command dfile dloc
-
-	*** DO FILE
-	
-	*** Write do file depending on location of data
-	if "`dloc'" == "local" {
-		if regexm("`dfile'", "^(.+/)*(.+)$") {
-			local fName `=regexs(2)'
-		}
-		local dataLoc "~/`remoteDir'/`fName'"
-	}
-	else if "`dloc'" == "cluster" {
-		local dataLoc "`dfile'"
-	}
-	else {
-		*** BOX ***
-	}
-	
-	*** Compose the file
-	local doTitle "* This is a parallelization script`=char(10)'"
-	if "`s(pURL)'" ~= "" {
-		local doLoadProg "do `s(pURL)'`=char(10)'"
-	}
-	local doLoadData "use `dataLoc'`=char(10)'"
-	local doWork "`command'`=char(10)'"   // command should have a switch
-	*** Here we need instructions for storing the results
-	
-	*** Combine all parts
-	local jobWork "`doTitle'`doLoadProg'`doLoadData'`doWork'"
-	
+	args host remoteDir dfile
 	
 	*** REMOTE SCRIPT
 	
@@ -206,21 +185,20 @@ program define _remoteBundle, sclass
 	*** Compose and write out REMOTE SCRIPT
 	file open `scriptHandle' using `remoteScript', write
 	file write `scriptHandle' "mkdir `remoteDir' && " 
-	file write `scriptHandle' "echo '`jobWork'' > ~/`remoteDir'/parallelWorkJob.do;"
+	file write `scriptHandle' "wget https://raw.githubusercontent.com/goshevs/parallelize/devel/_runBundle.do -P ./`remoteDir'/ &&"
 	file write `scriptHandle' "echo 'Done!'"
 	file close `scriptHandle'
 
 	*shell powershell.exe -noexit -command "Get-Content `pHolder'"
 	* shell powershell.exe -noexit -command "ssh `host'"
 	
-
 	
-	*** Move data if on local machine
+	*** If data on local machine
 	if "`dloc'" == "local" {
 		local dataTransfer `"shell powershell.exe -command "echo 'Copying data to the cluster...'; scp `dfile' `host':~/`remoteDir'/; echo 'Done!'"'
 	}
 	
-	*** Run all commands
+	*** Run remote script on cluster and move data (if needed)
 	if "`c(os)'" == "Windows" {
 		shell powershell.exe -command "echo 'Creating directories and files... '; Get-Content -Raw `remoteScript' | ssh `host' 'bash -s'; echo 'Done!'"
 		`dataTransfer'
@@ -243,12 +221,7 @@ program define _remoteBundle, sclass
 	
 end
 	
-	
-	
-exit
 
-	
-	
 	
 	
 /*

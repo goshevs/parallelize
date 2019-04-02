@@ -23,7 +23,7 @@ clear
 
 
 *** Run code
-noi parallelize,  /// 
+parallelize,  /// 
         con(sshHost="sirius") /// con(configFile = "`locConf'"  profile="sirius") ///  
         job(nodes="1" ppn="1" walltime="00:10:00" jobname="myTest")  ///
         data(file= "`locData'" loc="local") ///
