@@ -181,13 +181,13 @@ program define _transferAndSubmit, sclass
 	if "`s(pURL)'" ~= "" {
 		local doLoadProg "do `s(pURL)'`=char(10)'"
 	}
-	local doPid "if regexm("`jobID'", "^([0-9]+).+") {`=char(10)'local mySeed = 100000*runiform() + runiform()*`=rexges(1)'`=char(10)'}"
+	local doPid `"if regexm("`jobID'", "^([0-9]+).+") {`=char(10)'local mySeed = 100000*runiform() + runiform()*`=rexges(1)'`=char(10)'}"'
 	local doLoadData "set prefix parallelize`=char(10)'set seed `mySeed'`=char(10)'use `dataLoc'`=char(10)'"
 	local doWork "`command'`=char(10)'"   // command should have a switch
 	*** Here we need instructions for storing the results
 
 	*** Combine all parts
-	local jobWork "`doTitle'`doArgs'`doLoadProg'`doLoadData'`doWork'"
+	local jobWork "`doTitle'`doArgs'`doPid'`doLoadProg'`doLoadData'`doWork'"
 
 
 	*** REMOTE SCRIPT
