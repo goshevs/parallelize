@@ -182,6 +182,7 @@ program define _transferAndSubmit, sclass
 		local doLoadProg "do `s(pURL)'`=char(10)'"
 	}
 	local doLoadData "use `dataLoc'`=char(10)'"
+	set prefix parallelize
 	local doWork "`command'`=char(10)'"   // command should have a switch
 	*** Here we need instructions for storing the results
 
