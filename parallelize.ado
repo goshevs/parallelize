@@ -95,24 +95,7 @@ program define parallelize, eclass
 	
 	*** Compose and transfer content to remote machine
 	tempname remoteDir    // directory on remote machine
-	_transfer2Cluster "`host'" "`remoteDir'" `"`file'"'
-	
-	*** Set up the location of the data
-	if "`dloc'" == "local" {
-		if regexm("`dfile'", "^(.+/)*(.+)$") {
-			local fName `=regexs(2)'
-		}
-		local dataLoc "~/`remoteDir'/`fName'"
-	}
-	else if "`dloc'" == "cluster" {
-		local dataLoc "`dfile'"
-	}
-	else {
-		*** BOX ***
-	}
-	
-	*** Submit all jobs
-	ssh `host' "cd `remoteDir' && module load stata/15 && stata-mp -b _runBundle.do master `remoteDir' `nrep' 0 `dataLoc' '`command'' `url'"
+	_transferAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'"
 	
 	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
@@ -171,21 +154,54 @@ end
 	
 	
 *** Writing files and sending them to the remote machine
-capture program drop _transfer2Cluster
-program define _transfer2Cluster, sclass
+capture program drop _transferAndSubmit
+program define _transferAndSubmit, sclass
 
-	args host remoteDir dfile
+	args host remoteDir dfile dloc url command nrep
 	
+	
+	*** LOCATION OF DATA
+	if "`dloc'" == "local" {
+		if regexm("`dfile'", "^(.+/)*(.+)$") {
+			local fName `=regexs(2)'
+		}
+		local dataLoc "~/`remoteDir'/`fName'"
+	}
+	else if "`dloc'" == "cluster" {
+		local dataLoc "`dfile'"
+	}
+	else {
+		*** box ***
+	}
+	
+	
+	*** WORK file
+	local doTitle "* This is the work file`=char(10)'"
+	local doARgs "args jobID`=char(10)'"
+	if "`s(pURL)'" ~= "" {
+		local doLoadProg "do `s(pURL)'`=char(10)'"
+	}
+	local doLoadData "use `dataLoc'`=char(10)'"
+	local doWork "`command'`=char(10)'"   // command should have a switch
+	*** Here we need instructions for storing the results
+
+	*** Combine all parts
+	local jobWork "`doTitle'`doLoadProg'`doLoadData'`doWork'"
+
+
 	*** REMOTE SCRIPT
 	
 	*** Set tempfile and file handle to store commands
 	tempfile remoteScript 
 	tempname scriptHandle
 	
+	
 	*** Compose and write out REMOTE SCRIPT
 	file open `scriptHandle' using `remoteScript', write
-	file write `scriptHandle' "mkdir `remoteDir' && " 
-	file write `scriptHandle' "wget https://raw.githubusercontent.com/goshevs/parallelize/devel/_runBundle.do -P ./`remoteDir'/ &&"
+	file write `scriptHandle' "echo '`jobWork'' > ~/`remoteDir'/_workJob.do;"
+	file write `scriptHandle' "wget https://raw.githubusercontent.com/goshevs/parallelize/devel/_runBundle.do -P ./`remoteDir'/; "
+	file write `scriptHandle' "cd `remoteDir' && "
+	file write `scriptHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b _runBundle.do master `remoteDir' `nrep' && "
 	file write `scriptHandle' "echo 'Done!'"
 	file close `scriptHandle'
 
@@ -195,13 +211,14 @@ program define _transfer2Cluster, sclass
 	
 	*** If data on local machine
 	if "`dloc'" == "local" {
-		local dataTransfer `"shell powershell.exe -command "echo 'Copying data to the cluster...'; scp `dfile' `host':~/`remoteDir'/; echo 'Done!'"'
+		local dataTransfer `"shell powershell.exe -command "echo 'Copying data to the cluster...'; ssh `host' mkdir `remoteDir'; scp `dfile' `host':~/`remoteDir'/; echo 'Done!'"'
 	}
 	
 	*** Run remote script on cluster and move data (if needed)
 	if "`c(os)'" == "Windows" {
-		shell powershell.exe -command "echo 'Creating directories and files... '; Get-Content -Raw `remoteScript' | ssh `host' 'bash -s'; echo 'Done!'"
 		`dataTransfer'
+		shell powershell.exe  -noexit -command "echo 'Creating directories and files... '; Get-Content -Raw `remoteScript' | ssh `host' 'bash -s'; echo 'Done!'"
+		
 
 		/*
 		* | ssh `host' 'bash -s'"

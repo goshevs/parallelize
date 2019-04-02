@@ -10,10 +10,10 @@
 **
 **
 
-args request remoteScripts nrep jobID dataLoc command url
+args request remoteScripts nrep jobID
 
 
-
+set trace on
 ********************************************************************************
 *** Define functions
 ********************************************************************************
@@ -32,14 +32,15 @@ program define _submitMaster
 	local masterResources  "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=12:00:00`=char(10)'"
 	local spoolerHeader "qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local spoolerResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
-	local spoolerWork "module load stata/15`=char(10)'`=char(10)'stata-mp -b `remoteScripts'/_runBundle.do spool `remoteScripts'"`=char(10)'"
+	local spoolerWork "module load stata/15`=char(10)'stata-mp -b `remoteScripts'/_runBundle.do spool `remoteScripts'`=char(10)'"
 	local spoolerTail "EOF2`=char(10)'"
+	/*
 *	local monitorHeader "qsub << \EOF3`=char(10)'#PBS -N monitorJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 *	local monitorResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
 *	local monitorWork "module load stata/15`=char(10)'`=char(10)'stata-mp -b `remoteScripts'/_runBundle.do monitor `remoteScripts'"`=char(10)'"
 *	local monitorTail "EOF3`=char(10)'"
 	local masterTail "EOF1`=char(10)'"
-	
+	*/
 	*** Combine all parts
 	local masterFileContent "`masterHeader'`masterResources'`spoolerHeader'`spoolerResources'`spoolerWork'`spoolerTail'`monitorHeader'`monitorResources'`monitorWork'`monitorTail'`masterTail'"
 
@@ -49,7 +50,7 @@ program define _submitMaster
 
 	*** Write out the content to the file
 	file open `mfName' using `mSubmit', write text replace
-	file write `mfName' "`masterFileContent'"
+	file write `mfName' `"`masterFileContent'"'
 	file close `mfName'
 
 	*** Submit the job
@@ -71,7 +72,7 @@ program define _submitWork, sclass
 	local pbsResources "#PBS -l nodes=1:ppn=1,pmem=2gb,walltime=05:00:00`=char(10)'"
 	local pbsCommands "module load stata/15`=char(10)'`=char(10)'"
 	local pbsDofile "stata-mp -b `remoteScripts'/_runBundle.do work `remoteScripts' 0 $"  // this is written like this so that Stata can write it properly!
-	local pbsEnd "PBS_JOBID `jobName'`=char(10)'EOF`=char(10)'"
+	local pbsEnd "PBS_JOBID`=char(10)'EOF`=char(10)'"
 	
 	*** Combine all parts
 	local pbsFileContent "`pbsTitle'`pbsHeader'`pbsResources'`pbsCommands'`pbsDofile'"
@@ -110,17 +111,7 @@ else if "`request'" == "relaunch" {
 	}
 }
 else if "`request'" == "work" {
-
-	**** Run the command
-	noi di "`jobID'"
-	
-	if "`url'" ~= "" {
-		do `url'
-	}
-	use "`dataLoc'", clear
-	`command'
-	*** <<<< Need instructions for storing the results >>>>
-
+	do "`remoteScripts'/_workJob.do `jobID'"
 }
 else if "`request'" == "monitor" {
 	sleep 600000 // 10 minutes
