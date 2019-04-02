@@ -67,9 +67,9 @@ program define _submitWork, sclass
 	args remoteScripts jobName
 	
 	*** Compose the submit file
-	local pbsHeader "qsub <<EOF`=char(10)'#PBS -N `jobName'`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local pbsHeader "cd `remoteScripts'`=char(10)'qsub << \EOF`=char(10)'#PBS -N `jobName'`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local pbsResources "#PBS -l nodes=1:ppn=1,pmem=2gb,walltime=05:00:00`=char(10)'"
-	local pbsCommands "module load stata/15`=char(10)'`=char(10)'"
+	local pbsCommands "module load stata/15`=char(10)'"
 	local pbsDofile "stata-mp -b `remoteScripts'/_runBundle.do work `remoteScripts' 0 $"  // this is written like this so that Stata can write it properly!
 	local pbsEnd "PBS_JOBID`=char(10)'EOF`=char(10)'"
 	
@@ -82,12 +82,11 @@ program define _submitWork, sclass
 	
 	*** Write out the content to the file
 	file open `myfile' using `pbsSubmit', write text replace
-	file write `myfile' "`pbsFileContent'"
-	file write `myfile' "`pbsEnd'"
+	file write `myfile' `"`pbsFileContent'"'
+	file write `myfile' `"`pbsEnd'"'
 	file close `myfile'
 
 	*** Submit to sirius
-	noi di "Teacher number: `i'"
 	shell cat `pbsSubmit' | bash -s
 end
 
@@ -101,7 +100,7 @@ if "`request'" == "master" {
 }	
 else if "`request'" == "spool" {
 	forval i=1/`nrep' { 
-		_submitWork "`remoteScripts'" "`jobName'"
+		_submitWork "`remoteScripts'" "`c(username)'_parallelizeWork"
 	}
 }
 else if "`request'" == "relaunch" {

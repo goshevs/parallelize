@@ -217,7 +217,7 @@ program define _transferAndSubmit, sclass
 	*** Run remote script on cluster and move data (if needed)
 	if "`c(os)'" == "Windows" {
 		`dataTransfer'
-		shell powershell.exe  -noexit -command "echo 'Creating directories and files... '; Get-Content -Raw `remoteScript' | ssh `host' 'bash -s'; echo 'Done!'"
+		shell powershell.exe -command "echo 'Creating directories and files... '; Get-Content -Raw `remoteScript' | ssh `host' 'bash -s'; echo 'Done!'"
 		
 
 		/*
