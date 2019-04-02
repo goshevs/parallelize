@@ -21,13 +21,14 @@ do "`pathBasename'/simdata.do"
 save "`pathBasename'/myData", replace
 clear
 
+capture erase "~/Desktop/test.do"
 
 *** Run code
 parallelize,  /// 
         con(sshHost="sirius") /// con(configFile = "`locConf'"  profile="sirius") ///  
         job(nodes="1" ppn="1" walltime="00:10:00" jobname="myTest")  ///
         data(file= "`locData'" loc="local") ///
-        exec(nrep="10" pURL = "`locProg'"): mytest x1, c(mean)
+        exec(nrep="10" pURL = "`locProg'"): mytest x1, c(sum)
 
 sreturn list
 

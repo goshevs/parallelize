@@ -159,7 +159,6 @@ program define _transferAndSubmit, sclass
 
 	args host remoteDir dfile dloc url command nrep
 	
-	
 	*** LOCATION OF DATA
 	if "`dloc'" == "local" {
 		if regexm("`dfile'", "^(.+/)*(.+)$") {
@@ -174,21 +173,37 @@ program define _transferAndSubmit, sclass
 		*** box ***
 	}
 	
+	*** Compose and write out the WORK file
+	tempfile workJob 
+	tempname workHandle
 	
-	*** WORK file
+	file open `workHandle' using `workJob', write
+	file write `workHandle' "* This is the work file`=char(10)'"
+	file write `workHandle' "args jobID`=char(10)'"
+	if "`s(pURL)'" ~= "" {
+		file write `workHandle' "do `s(pURL)'`=char(10)'"
+	}
+	file write `workHandle' `"if regexm("\`jobID'", "^([0-9]+).+") {`=char(10)'local pid = "\`=regexs(1)'"`=char(10)'noi di "\`pid'"`=char(10)'set seed \`pid'`=char(10)'local mySeed = \`pid' + 10000000 * runiform()`=char(10)'}`=char(10)'"'
+	file write `workHandle' `"set prefix parallelize`=char(10)'set seed \`mySeed'`=char(10)'noi di "\`mySeed'"`=char(10)'use `dataLoc'`=char(10)'"'
+	file write `workHandle' "`command'`=char(10)'"
+	file write `workHandle' "clear`=char(10)'set obs 1`=char(10)'gen mynum = \`r(mean)'`=char(10)'gen seed = \`mySeed'`=char(10)'save ~/`remoteDir'/data_\`=regexs(1)', replace"
+	file close `workHandle'
+	
+	
+	/*
 	local doTitle "* This is the work file`=char(10)'"
 	local doArgs "args jobID`=char(10)'"
 	if "`s(pURL)'" ~= "" {
 		local doLoadProg "do `s(pURL)'`=char(10)'"
 	}
-	local doPid `"if regexm("`jobID'", "^([0-9]+).+") {`=char(10)'local mySeed = 100000*runiform() + runiform()*`=rexges(1)'`=char(10)'}"'
-	local doLoadData "set prefix parallelize`=char(10)'set seed `mySeed'`=char(10)'use `dataLoc'`=char(10)'"
+	local doPid `"if regexm(\"\`jobID'\", "^([0-9]+).+") {`=char(10)'local mySeed = 100000*runiform() + runiform()*\`=regexs(1)'`=char(10)'}`=char(10)'"'
+	local doLoadData "set prefix parallelize`=char(10)'set seed \`mySeed'`=char(10)'use `dataLoc'`=char(10)'"
 	local doWork "`command'`=char(10)'"   // command should have a switch
 	*** Here we need instructions for storing the results
 
 	*** Combine all parts
-	local jobWork "`doTitle'`doArgs'`doPid'`doLoadProg'`doLoadData'`doWork'"
-
+	local jobWork `"`doTitle'`doArgs'`doPid'`doLoadProg'`doLoadData'`doWork'"'
+	*/
 
 	*** REMOTE SCRIPT
 	
@@ -196,15 +211,16 @@ program define _transferAndSubmit, sclass
 	tempfile remoteScript 
 	tempname scriptHandle
 	
-	
+
 	*** Compose and write out REMOTE SCRIPT
 	file open `scriptHandle' using `remoteScript', write
-	file write `scriptHandle' "echo '`jobWork'' > ~/`remoteDir'/_workJob.do;"
+*	file write `scriptHandle' "echo '`jobWork'' > ~/`remoteDir'/_workJob.do;"
 	file write `scriptHandle' "wget https://raw.githubusercontent.com/goshevs/parallelize/devel/_runBundle.do -P ./`remoteDir'/; "
 	file write `scriptHandle' "cd `remoteDir' && "
 	file write `scriptHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b _runBundle.do master ~/`remoteDir' `nrep' && "
 	file write `scriptHandle' "echo 'Done!'"
 	file close `scriptHandle'
+
 
 	*shell powershell.exe -noexit -command "Get-Content `pHolder'"
 	* shell powershell.exe -noexit -command "ssh `host'"
@@ -217,8 +233,11 @@ program define _transferAndSubmit, sclass
 	
 	*** Run remote script on cluster and move data (if needed)
 	if "`c(os)'" == "Windows" {
-		`dataTransfer'
-		shell powershell.exe -command "echo 'Creating directories and files... '; Get-Content -Raw `remoteScript' | ssh `host' 'bash -s'; echo 'Done!'"
+		if "`dloc'" == "local" {
+			shell powershell.exe -command "echo 'Copying data to the cluster...'; ssh `host' mkdir `remoteDir'; scp `dfile' `host':~/`remoteDir'/; echo 'Done!'"
+		}
+		shell powershell.exe -command "echo 'Copying work to the cluster...'; scp `workJob' `host':~/`remoteDir'/_workJob.do; echo 'Done!'"
+		shell powershell.exe -command "echo 'Submitting masterJob... '; Get-Content -Raw `remoteScript' | ssh `host' 'bash -s'; echo 'Done!'"
 		
 
 		/*
