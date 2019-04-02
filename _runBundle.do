@@ -29,7 +29,7 @@ program define _submitMaster
 	*** Compose the master submit 
 	local masterHeader  "cd `remoteScripts'`=char(10)'qsub << \EOF1`=char(10)'#PBS -N masterJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local masterResources  "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=12:00:00`=char(10)'"
-	local spoolerHeader "qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local spoolerHeader "cd `remoteScripts'`=char(10)'qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local spoolerResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
 	local spoolerWork "cd `remoteScripts'`=char(10)'module load stata/15`=char(10)'stata-mp -b `remoteScripts'/_runBundle.do spool `remoteScripts' `nrep'`=char(10)'"
 	local spoolerTail "EOF2`=char(10)'"
