@@ -12,7 +12,7 @@
 
 args request remoteScripts nrep jobID
 
-set trace on
+
 ********************************************************************************
 *** Define functions
 ********************************************************************************
@@ -27,7 +27,7 @@ program define _submitMaster
 	args remoteScripts nrep
 	
 	*** Compose the master submit 
-	local masterHeader  "qsub << \EOF1`=char(10)'#PBS -N masterJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local masterHeader  "cd `remoteScripts'`=char(10)'qsub << \EOF1`=char(10)'#PBS -N masterJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local masterResources  "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=12:00:00`=char(10)'"
 	local spoolerHeader "qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local spoolerResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
@@ -110,7 +110,7 @@ else if "`request'" == "relaunch" {
 	}
 }
 else if "`request'" == "work" {
-	do "`remoteScripts'/_workJob.do `jobID'"
+	do "`remoteScripts'/_workJob.do" "`jobID'"
 }
 else if "`request'" == "monitor" {
 	sleep 600000 // 10 minutes
