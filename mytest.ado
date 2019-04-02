@@ -6,10 +6,10 @@ program define mytest
 	
 	if "`c(prefix)'" == "parallelize" {
 		bsample
-		`command' `varname'
+		`command' `1'
 	}
 	else {
-		`command' `varname'
+		`command' `1'
 	}
 end
 
