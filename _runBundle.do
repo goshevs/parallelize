@@ -12,7 +12,7 @@
 
 args request remoteScripts nrep jobID
 
-
+set trace on
 ********************************************************************************
 *** Define functions
 ********************************************************************************
@@ -100,7 +100,7 @@ if "`request'" == "master" {
 }	
 else if "`request'" == "spool" {
 	forval i=1/`nrep' { 
-		_submitWork "`remoteScripts'" "`c(username)'_parallelizeWork"
+		_submitWork "`remoteScripts'" "`c(username)'_parallel"
 	}
 }
 else if "`request'" == "relaunch" {
