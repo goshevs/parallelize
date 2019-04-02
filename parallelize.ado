@@ -177,17 +177,17 @@ program define _transferAndSubmit, sclass
 	
 	*** WORK file
 	local doTitle "* This is the work file`=char(10)'"
-	local doARgs "args jobID`=char(10)'"
+	local doArgs "args jobID`=char(10)'"
 	if "`s(pURL)'" ~= "" {
 		local doLoadProg "do `s(pURL)'`=char(10)'"
 	}
-	local doLoadData "use `dataLoc'`=char(10)'"
-	set prefix parallelize
+	local doPid "if regexm("`jobID'", "^([0-9]+).+") {`=char(10)'local mySeed = 100000*runiform() + runiform()*`=rexges(1)'`=char(10)'}"
+	local doLoadData "set prefix parallelize`=char(10)'set seed `mySeed'`=char(10)'use `dataLoc'`=char(10)'"
 	local doWork "`command'`=char(10)'"   // command should have a switch
 	*** Here we need instructions for storing the results
 
 	*** Combine all parts
-	local jobWork "`doTitle'`doLoadProg'`doLoadData'`doWork'"
+	local jobWork "`doTitle'`doArgs'`doLoadProg'`doLoadData'`doWork'"
 
 
 	*** REMOTE SCRIPT
