@@ -24,22 +24,23 @@ set trace on
 capture program drop _submitMaster
 program define _submitMaster
 	
-	args remoteScripts
+	args remoteScripts nrep
 	
 	*** Compose the master submit 
 	local masterHeader  "qsub << \EOF1`=char(10)'#PBS -N masterJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local masterResources  "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=12:00:00`=char(10)'"
 	local spoolerHeader "qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local spoolerResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
-	local spoolerWork "module load stata/15`=char(10)'stata-mp -b `remoteScripts'/_runBundle.do spool `remoteScripts'`=char(10)'"
+	local spoolerWork "module load stata/15`=char(10)'stata-mp -b `remoteScripts'/_runBundle.do spool `remoteScripts' `nrep'`=char(10)'"
 	local spoolerTail "EOF2`=char(10)'"
 	/*
 *	local monitorHeader "qsub << \EOF3`=char(10)'#PBS -N monitorJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 *	local monitorResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
 *	local monitorWork "module load stata/15`=char(10)'`=char(10)'stata-mp -b `remoteScripts'/_runBundle.do monitor `remoteScripts'"`=char(10)'"
 *	local monitorTail "EOF3`=char(10)'"
-	local masterTail "EOF1`=char(10)'"
 	*/
+	local masterTail "EOF1`=char(10)'"
+
 	*** Combine all parts
 	local masterFileContent "`masterHeader'`masterResources'`spoolerHeader'`spoolerResources'`spoolerWork'`spoolerTail'`monitorHeader'`monitorResources'`monitorWork'`monitorTail'`masterTail'"
 
@@ -74,7 +75,7 @@ program define _submitWork, sclass
 	local pbsEnd "PBS_JOBID`=char(10)'EOF`=char(10)'"
 	
 	*** Combine all parts
-	local pbsFileContent "`pbsTitle'`pbsHeader'`pbsResources'`pbsCommands'`pbsDofile'"
+	local pbsFileContent `"`pbsTitle'`pbsHeader'`pbsResources'`pbsCommands'`pbsDofile'"'
 
 	*** Initialize a filename and a temp file
 	tempfile pbsSubmit
@@ -96,7 +97,7 @@ end
 ********************************************************************************
 
 if "`request'" == "master" {
-	_submitMaster "`remoteScripts'"
+	_submitMaster "`remoteScripts'" "`nrep'"
 }	
 else if "`request'" == "spool" {
 	forval i=1/`nrep' { 
