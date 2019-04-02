@@ -70,7 +70,7 @@ program define _submitWork, sclass
 	*** Compose the submit file
 	local pbsHeader "cd `remoteScripts'`=char(10)'qsub << \EOF`=char(10)'#PBS -N `jobName'`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local pbsResources "#PBS -l nodes=1:ppn=1,pmem=2gb,walltime=05:00:00`=char(10)'"
-	local pbsCommands "module load stata/15`=char(10)'"
+	local pbsCommands "module load stata/15`=char(10)'cd `remoteScripts'`=char(10)'"
 	local pbsDofile "stata-mp -b `remoteScripts'/_runBundle.do work `remoteScripts' 0 $"  // this is written like this so that Stata can write it properly!
 	local pbsEnd "PBS_JOBID`=char(10)'EOF`=char(10)'"
 	
