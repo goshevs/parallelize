@@ -1,0 +1,9 @@
+[cluster1]
+host=cluster1.mydomain.edu
+username=goshev
+port=22
+
+[cluster2]
+host=cluster2.mydomain.edu
+username=goshevs
+port=60
