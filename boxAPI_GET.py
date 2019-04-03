@@ -21,8 +21,6 @@ from boxsdk import OAuth2
 from threading import Timer
 
 import config_oauth
-import requests
-import logging
 import webbrowser
 
 
