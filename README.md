@@ -123,7 +123,7 @@ data file is housed.
 
 **Syntax for `EXECspecs`**
 
-EXECspecs` defines execution parameters. It has the following syntax:
+`EXECspecs` defines execution parameters. It has the following syntax:
 
 `exec(nrep="" progUrl="")`
 
