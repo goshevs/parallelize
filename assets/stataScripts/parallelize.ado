@@ -172,7 +172,7 @@ program define _setupAndSubmit, sclass
 		*** box ***
 	}
 	
-	*** REMOTE WORK FILE
+	*** REMOTE WORK FILE  *** FIX RANDOM SEED GENERATOR!!!
 	tempfile workJob 
 	tempname workHandle
 	
@@ -198,7 +198,7 @@ program define _setupAndSubmit, sclass
 	file open `dirsHandle' using `remoteDirs', write
 	file write `dirsHandle' "mkdir -p `remoteDir'/scripts `remoteDir'/data  `remoteDir'/logs && "
 	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output && "
-	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/_runBundle.do -P ./`remoteDir'/scripts/; "
+	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/_runBundle.do -P ./`remoteDir'/scripts/; "
 	file write `dirsHandle' "echo 'Done!'"
 	file close `dirsHandle'
 	
