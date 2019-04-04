@@ -12,7 +12,7 @@ do "`pathBasename'/assets/stataScripts/parallelize.ado"  // we should pull this 
 *** Define locations
 local locConf "`pathBasename'/config1"
 local locData "c:/Users/goshev/Desktop/gitProjects/parallelize/myData.dta"  // full path is required (for scp)
-local locProg "https://raw.githubusercontent.com/goshevs/parallelize/devel/mytest.ado"
+local locProg "https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/mytest.ado"
 
 
 *** Generate data

@@ -225,7 +225,7 @@ program define _setupAndSubmit, sclass
 	*** Not tested on macOS and Linux
 	if "`c(os)'" == "Windows" {
 		local osCat "Get-Content -Raw"
-		local shellCommand "powershell.exe -noexit -command"
+		local shellCommand "powershell.exe -command"
 	}
 	else {
 		local osCat "cat"
