@@ -3,8 +3,7 @@
 local pathBasename "~/Desktop/gitProjects/parallelize"
 
 *** Load the ado's
-do "`pathBasename'/myTestCommand.ado"
-do "`pathBasename'/parallelize.ado"
+do "`pathBasename'/assets/stataScripts/parallelize.ado"  // we should pull this from gitHub
 
 
 *** Behavior under parallelize
@@ -17,11 +16,11 @@ local locProg "https://raw.githubusercontent.com/goshevs/parallelize/devel/mytes
 
 
 *** Generate data
-do "`pathBasename'/simdata.do"
+do "`pathBasename'/examples/simdata.do"
 save "`pathBasename'/myData", replace
 clear
 
-capture erase "~/Desktop/test.do"
+* capture erase "~/Desktop/test.do"
 
 *** Run code
 parallelize,  /// 

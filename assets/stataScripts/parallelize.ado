@@ -91,11 +91,12 @@ program define parallelize, eclass
 		}
 	}
 	
+	*** Store the url if it exists
 	local url "`s(pURL)'"
 	
 	*** Compose and transfer content to remote machine
 	tempname remoteDir    // directory on remote machine
-	_transferAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'"
+	_setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'"
 	
 	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
@@ -151,11 +152,9 @@ program define _parseConfig, sclass
 	}
 end
 	
-	
-	
 *** Writing files and sending them to the remote machine
-capture program drop _transferAndSubmit
-program define _transferAndSubmit, sclass
+capture program drop _setupAndSubmit
+program define _setupAndSubmit, sclass
 
 	args host remoteDir dfile dloc url command nrep
 	
@@ -164,7 +163,7 @@ program define _transferAndSubmit, sclass
 		if regexm("`dfile'", "^(.+/)*(.+)$") {
 			local fName `=regexs(2)'
 		}
-		local dataLoc "~/`remoteDir'/`fName'"
+		local dataLoc "~/`remoteDir'/data/initial/`fName'"
 	}
 	else if "`dloc'" == "cluster" {
 		local dataLoc "`dfile'"
@@ -173,7 +172,7 @@ program define _transferAndSubmit, sclass
 		*** box ***
 	}
 	
-	*** Compose and write out the WORK file
+	*** REMOTE WORK FILE
 	tempfile workJob 
 	tempname workHandle
 	
@@ -186,60 +185,96 @@ program define _transferAndSubmit, sclass
 	file write `workHandle' `"if regexm("\`jobID'", "^([0-9]+).+") {`=char(10)'local pid = "\`=regexs(1)'"`=char(10)'noi di "\`pid'"`=char(10)'set seed \`pid'`=char(10)'local mySeed = \`pid' + 10000000 * runiform()`=char(10)'}`=char(10)'"'
 	file write `workHandle' `"set prefix parallelize`=char(10)'set seed \`mySeed'`=char(10)'noi di "\`mySeed'"`=char(10)'use `dataLoc'`=char(10)'"'
 	file write `workHandle' "`command'`=char(10)'"
-	file write `workHandle' "clear`=char(10)'set obs 1`=char(10)'gen mynum = \`r(mean)'`=char(10)'gen seed = \`mySeed'`=char(10)'save ~/`remoteDir'/data_\`=regexs(1)', replace"
+	file write `workHandle' "clear`=char(10)'set obs 1`=char(10)'gen mynum = \`r(mean)'`=char(10)'gen seed = \`mySeed'`=char(10)'save ~/`remoteDir'/data/output/data_\`=regexs(1)', replace"
 	file close `workHandle'
 	
 	
-	/*
-	local doTitle "* This is the work file`=char(10)'"
-	local doArgs "args jobID`=char(10)'"
-	if "`s(pURL)'" ~= "" {
-		local doLoadProg "do `s(pURL)'`=char(10)'"
-	}
-	local doPid `"if regexm(\"\`jobID'\", "^([0-9]+).+") {`=char(10)'local mySeed = 100000*runiform() + runiform()*\`=regexs(1)'`=char(10)'}`=char(10)'"'
-	local doLoadData "set prefix parallelize`=char(10)'set seed \`mySeed'`=char(10)'use `dataLoc'`=char(10)'"
-	local doWork "`command'`=char(10)'"   // command should have a switch
-	*** Here we need instructions for storing the results
-
-	*** Combine all parts
-	local jobWork `"`doTitle'`doArgs'`doPid'`doLoadProg'`doLoadData'`doWork'"'
-	*/
-
-	*** REMOTE SCRIPT
+	*** REMOTE SETUP SCRIPT
 	
-	*** Set tempfile and file handle to store commands
-	tempfile remoteScript 
-	tempname scriptHandle
+	tempfile remoteDirs
+	tempname dirsHandle
 	
-
-	*** Compose and write out REMOTE SCRIPT
-	file open `scriptHandle' using `remoteScript', write
-*	file write `scriptHandle' "echo '`jobWork'' > ~/`remoteDir'/_workJob.do;"
-	file write `scriptHandle' "wget https://raw.githubusercontent.com/goshevs/parallelize/devel/_runBundle.do -P ./`remoteDir'/; "
-	file write `scriptHandle' "cd `remoteDir' && "
-	file write `scriptHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b _runBundle.do master ~/`remoteDir' `nrep' && "
-	file write `scriptHandle' "echo 'Done!'"
-	file close `scriptHandle'
+	*** Compose and write out REMOTE SETUP SCRIPT
+	file open `dirsHandle' using `remoteDirs', write
+	file write `dirsHandle' "mkdir -p `remoteDir'/scripts `remoteDir'/data  `remoteDir'/logs && "
+	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output && "
+	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/_runBundle.do -P ./`remoteDir'/scripts/; "
+	file write `dirsHandle' "echo 'Done!'"
+	file close `dirsHandle'
+	
+	
+	*** REMOTE SUBMISSION SCRIPT
+	
+	tempfile remoteSubmit
+	tempname submitHandle
+	
+	*** Compose and write out REMOTE SUBMIT SCRIPT
+	file open `submitHandle' using `remoteSubmit', write
+	file write `submitHandle' "cd `remoteDir'/logs && "
+	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b ../scripts/_runBundle.do master ~/`remoteDir' `nrep' && "
+	file write `submitHandle' "echo 'Done!'"
+	file close `submitHandle'
 
 
 	*shell powershell.exe -noexit -command "Get-Content `pHolder'"
-	* shell powershell.exe -noexit -command "ssh `host'"
+	*shell powershell.exe -noexit -command "ssh `host'"
 	
 	
-	*** If data on local machine
-	if "`dloc'" == "local" {
-		local dataTransfer `"shell powershell.exe -command "echo 'Copying data to the cluster...'; ssh `host' mkdir `remoteDir'; scp `dfile' `host':~/`remoteDir'/; echo 'Done!'"'
+	**** CALL THE SHELL AND EXECUTE ALL OPERATIONS
+	
+	*** Not tested on macOS and Linux
+	if "`c(os)'" == "Windows" {
+		local osCat "Get-Content -Raw"
+		local shellCommand "powershell.exe -noexit -command"
+	}
+	else {
+		local osCat "cat"
+		local shellCommand ""
 	}
 	
+	**** Write out the command string
+	local myCommand "echo 'Setting up directory structure... '; `osCat' `remoteDirs'| ssh `host' 'bash -s';"
+	local myCommand "`myCommand' echo 'Copying work file... '; scp -q `workJob' `host':~/`remoteDir'/scripts/_workJob.do; echo 'Done!';"
+	if "`dloc'" == "local" {
+		local myCommand "`myCommand' echo 'Copying data... '; scp -q `dfile' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
+	}
+	local myCommand "`myCommand' echo 'Submitting masterJob... '; `osCat' `remoteSubmit' | ssh `host' 'bash -s';"
+	
+	*** Execute the command
+	shell `shellCommand' "`myCommand'"
+
+
+	
+	/* OLD FUNCTIONING VERSION
+	
+	
+	if "`c(os)'" == "Windows" {
+		local myCommand "echo 'Setting up directory structure... '; Get-Content -Raw `remoteDirs' | ssh `host' 'bash -s'; echo 'Done!';"
+		local myCommand "`myCommand' echo 'Copying work file...'; scp `workJob' `host':~/`remoteDir'/scripts/_workJob.do; echo 'Done!'"
+		if "`dloc'" == "local" {
+			local myCommand "`myCommand' echo 'Copying data...'; scp `dfile' `host':~/`remoteDir'/data/initial; echo 'Done!'"
+		}
+		shell powershell.exe -noexit -command "`myCommand'"
+	}
+	*/
+	
+	
+	
+	
+	
+	/*		
+			
+			
 	*** Run remote script on cluster and move data (if needed)
 	if "`c(os)'" == "Windows" {
+		shell powershell.exe -noexit -command "echo 'Setting up directory structure... '; Get-Content -Raw `remoteDirs' | ssh `host' 'bash -s'; echo 'Done!';"
+		shell powershell.exe -noexit -command "echo 'Copying work file...'; scp `workJob' `host':~/`remoteDir'/scripts/_workJob.do; echo 'Done!'"
 		if "`dloc'" == "local" {
-			shell powershell.exe -command "echo 'Copying data to the cluster...'; ssh `host' mkdir `remoteDir'; scp `dfile' `host':~/`remoteDir'/; echo 'Done!'"
+			shell powershell.exe -noexit -command "echo 'Copying data...'; scp `dfile' `host':~/`remoteDir'/data/initial; echo 'Done!'"
 		}
-		shell powershell.exe -command "echo 'Copying work to the cluster...'; scp `workJob' `host':~/`remoteDir'/_workJob.do; echo 'Done!'"
-		shell powershell.exe -command "echo 'Submitting masterJob... '; Get-Content -Raw `remoteScript' | ssh `host' 'bash -s'; echo 'Done!'"
+		* shell powershell.exe -command "echo 'Submitting masterJob... '; Get-Content -Raw `remoteSubmit' | ssh `host' 'bash -s'; echo 'Done!'"
 		
-
+		
 		/*
 		* | ssh `host' 'bash -s'"
 		* shell powershell.exe -noexit -command "Get-Content `remoteScript' | ssh `host' 'bash -s'"
@@ -254,7 +289,7 @@ program define _transferAndSubmit, sclass
 		
 		*shell echo "this is a test" | ssh sirius 'cat > ~/mytest.txt'
 	}
-	
+	*/
 	
 end
 	
