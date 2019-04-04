@@ -9,7 +9,7 @@
 ## Introduction
 
 Although a fairly large number of commands in Stata are internally parallelized,
-the speed of execution of specfic algorithms such as bootstrapping, jacknifing and imputation 
+the speed of execution of specific algorithms such as bootstrapping, jackknifing and imputation 
 could be accelerated by utilizing a computing cluster. The aim of `parallelize` is to help researchers 
 in parallelizing their analyses and submitting jobs directly from their local 
 copy of Stata to the Linux computing cluster at Boston College (and potentially any
@@ -36,7 +36,7 @@ Over the past several months, we were able to a couple of important milestones:
 1. We developed a python API to Box that enables pulling and pushing of
 data directly from/to Box, thus eliminating a series of intermediate steps.
 
-2. We developed and tested successfully the job sibmission interface.
+2. We developed and tested successfully the job submission interface.
 
 **Development continues!**
 
@@ -68,7 +68,7 @@ parallelize, CONspecs(string asis) [JOBspecs(string asis) ///
 
 | argument       | description            |
 |----------------|------------------------|
-| *JOBspecs *    | the specification of a parallel job; see below for syntax |
+| *JOBspecs*    | the specification of a parallel job; see below for syntax |
 | *DATAspecs*    | specification of the data to be used; see below for syntax |
 | *EXECspecs*    | execution specifications; see below for syntax |
 
@@ -100,7 +100,7 @@ The configuration file should be specified in
 
 where:
 
-- `nodes` is the number of nodes requrested
+- `nodes` is the number of nodes requested
 - `ppn` is the number of processors per node 
 - `walltime` is the length time for the job
 - `jobname` is the name that will be applied to all parallel jobs
