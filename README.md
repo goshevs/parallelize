@@ -31,7 +31,7 @@ qui do "https://raw.githubusercontent.com/goshevs/parallelize/master/assets/stat
 Update on our development effort
 ---
 
-Over the past several months, we were able to a couple of important milestones:
+Over the past several months, we reached a couple of important milestones:
 
 1. We developed a python API to Box that enables pulling and pushing of
 data directly from/to Box, thus eliminating a series of intermediate steps.
