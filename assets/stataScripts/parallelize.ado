@@ -153,7 +153,7 @@ end
 capture program drop _setupAndSubmit
 program define _setupAndSubmit, sclass
 
-	args host remoteDir dfile dloc url command nrep jobname callBack email nodes ppn pmem walltime
+	args host remoteDir dfile dloc url command nrep jobname callback email nodes ppn pmem walltime
 	
 	*** LOCATION OF DATA
 	if "`dloc'" == "local" {
@@ -208,7 +208,7 @@ program define _setupAndSubmit, sclass
 	*** Compose and write out REMOTE SUBMIT SCRIPT
 	file open `submitHandle' using `remoteSubmit', write
 	file write `submitHandle' "cd `remoteDir'/logs && "
-	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b ../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' 0 `cbfreq' `email' `nodes' `ppn' `pmem' `walltime' && "
+	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b ../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' 0 `callback' `email' `nodes' `ppn' `pmem' `walltime' && "
 	file write `submitHandle' "echo 'Done!'"
 	file close `submitHandle'
 

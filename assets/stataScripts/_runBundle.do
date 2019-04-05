@@ -148,10 +148,6 @@ end
 *** Program code
 ********************************************************************************
 
-noi di "`remoteScripts' `nrep' `jobName' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime' "
-
-
-
 if "`request'" == "master" {
 	_submitMaster "`remoteScripts'" "`nrep'" "`email'"
 }	
