@@ -17,14 +17,13 @@ args request remoteScripts nrep jobName jobID callBack email nodes ppn pmem wall
 *** Define functions
 ********************************************************************************
 
-
 ************************
 *** MASTER submission program 
 
 capture program drop _submitMaster
 program define _submitMaster
 	
-	args remoteScripts nrep email
+	args remoteScripts nrep jobName callBack email nodes ppn pmem walltime
 	
 	*** Compose the master submit 
 	local masterHeader  "cd `remoteScripts'/logs`=char(10)'qsub << \EOF1`=char(10)'#PBS -N masterJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
@@ -149,7 +148,8 @@ end
 ********************************************************************************
 
 if "`request'" == "master" {
-	_submitMaster "`remoteScripts'" "`nrep'" "`email'"
+	_submitMaster "`remoteScripts'" "`nrep'" "`jobName'" "`callBack'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
+	
 }	
 else if "`request'" == "spool" {
 	forval i=1/`nrep' { 

@@ -53,7 +53,7 @@ program define parallelize, eclass
 	_parseSpecs `"`jobspecs'"'
 
 	*** <><><> Collect and check user input
-	foreach arg in nodes ppn walltime jobname {
+	foreach arg in nodes ppn pmem walltime jobname {
 		if "`s(`arg')'" ~= "" {
 			local `arg' "`s(`arg')'"
 		}
@@ -81,7 +81,7 @@ program define parallelize, eclass
 	_parseSpecs `"`execspecs'"'
 	
 	*** <><><> Collect and check user input
-	foreach arg in nrep {
+	foreach arg in nrep cbfreq email {
 		if "`s(`arg')'" ~= "" {
 			local `arg' "`s(`arg')'"
 		}
@@ -94,7 +94,7 @@ program define parallelize, eclass
 	
 	*** Compose and transfer content to remote machine
 	tempname remoteDir    // directory on remote machine
-	_setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
+	noi _setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
 	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
 	
@@ -155,6 +155,8 @@ program define _setupAndSubmit, sclass
 
 	args host remoteDir dfile dloc url command nrep jobname callback email nodes ppn pmem walltime
 	
+	
+	noi di " `host' `remoteDir' `dfile' `dloc' `url' `command' `nrep' `jobname' `callback' `email' `nodes' `ppn' `pmem' `walltime'"
 	*** LOCATION OF DATA
 	if "`dloc'" == "local" {
 		if regexm("`dfile'", "^(.+/)*(.+)$") {
@@ -195,7 +197,7 @@ program define _setupAndSubmit, sclass
 	file open `dirsHandle' using `remoteDirs', write
 	file write `dirsHandle' "mkdir -p `remoteDir'/scripts `remoteDir'/data  `remoteDir'/logs && "
 	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output && "
-	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/_runBundle.do -P ./`remoteDir'/scripts/; "
+*	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/_runBundle.do -P ./`remoteDir'/scripts/; "
 	file write `dirsHandle' "echo 'Done!'"
 	file close `dirsHandle'
 	
@@ -235,12 +237,11 @@ program define _setupAndSubmit, sclass
 	if "`dloc'" == "local" {
 		local myCommand "`myCommand' echo 'Copying data... '; scp -q `dfile' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
 	}
+	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/_runBundle.do `host':~/`remoteDir'/scripts/; echo 'Done!';"
 	local myCommand "`myCommand' echo 'Submitting masterJob... '; `osCat' `remoteSubmit' | ssh `host' 'bash -s';"
 	
 	*** Execute the command
 	shell `shellCommand' "`myCommand'"
-
-
 	
 	/* OLD FUNCTIONING VERSION
 	
