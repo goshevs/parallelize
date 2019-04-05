@@ -31,11 +31,11 @@ program define _submitMaster
 	local masterResources  "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=12:00:00`=char(10)'"
 	local spoolerHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local spoolerResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
-	local spoolerWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do spool `remoteScripts' `nrep' `jobName' `callBack' `email' `nodes' `ppn' `pmem' `walltime'`=char(10)'"
+	local spoolerWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do spool `remoteScripts' `nrep' `jobName' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime'`=char(10)'"
 	local spoolerTail "EOF2`=char(10)'"
 	local monitorHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF3`=char(10)'#PBS -N monitorJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local monitorResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'#PBS -m e`=char(10)'#PBS -M `email'`=char(10)'"
-	local monitorWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'`=char(10)'stata-mp -b `remoteScripts'/_runBundle.do monitor `remoteScripts' `nrep' `jobName' 0 `callBack'`=char(10)'"
+	local monitorWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do monitor `remoteScripts' `nrep' `jobName' 0 `callBack'`=char(10)'"
 	local monitorTail "EOF3`=char(10)'"
 	local masterTail "EOF1`=char(10)'"
 
