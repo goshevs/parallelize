@@ -116,7 +116,7 @@ program define _cbTranslate, sclass
 	
 	if regexm("`callback'", "([0-9]+)([smhd])") {
 		local duration "`=regexs(1)'"
-		local unit "`=regex(2)'"
+		local unit "`=regexs(2)'"
 		
 		if "`unit'" == "s" {
 			local len = `duration' * 1000
