@@ -163,7 +163,7 @@ else if "`request'" == "monitor" {
 
 	*** Parse callBack //sleep 600000 = 10 minutes
 	_cbTranslate "`callBack'"
-	local callBackTR "`s(len)'"
+	local callBackTR "`s(lenSleep)'"
 	_waitAndCheck "`callBackTR'" "`c(username)'_`jobName'"
 	
 	*** Count how many output files we have
