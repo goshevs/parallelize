@@ -91,12 +91,10 @@ program define parallelize, eclass
 		}
 	}
 	
-	*** Store the url if it exists
-	local url "`s(pURL)'"
 	
 	*** Compose and transfer content to remote machine
 	tempname remoteDir    // directory on remote machine
-	_setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'"
+	_setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
 	
 	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
@@ -156,7 +154,7 @@ end
 capture program drop _setupAndSubmit
 program define _setupAndSubmit, sclass
 
-	args host remoteDir dfile dloc url command nrep
+	args host remoteDir dfile dloc url command nrep jobname callBack email nodes ppn pmem walltime
 	
 	*** LOCATION OF DATA
 	if "`dloc'" == "local" {
@@ -211,7 +209,7 @@ program define _setupAndSubmit, sclass
 	*** Compose and write out REMOTE SUBMIT SCRIPT
 	file open `submitHandle' using `remoteSubmit', write
 	file write `submitHandle' "cd `remoteDir'/logs && "
-	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b ../scripts/_runBundle.do master ~/`remoteDir' `nrep' && "
+	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b ../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' `cbfreq' `email' `nodes' `ppn' `pmem' `walltime' && "
 	file write `submitHandle' "echo 'Done!'"
 	file close `submitHandle'
 
