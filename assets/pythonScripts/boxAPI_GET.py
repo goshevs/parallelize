@@ -3,6 +3,11 @@
 #
 # v.0.1
 #
+#
+# A substantial part of this code comes from:
+# https://github.com/jcleblanc/box-examples/blob/master/python/samples/auth_oauth.py 
+#
+#
 # To run this file, in the terminal submit the following commands
 # export FLASK_APP=boxAPI.py
 # export FLASK_ENV=development
