@@ -96,7 +96,6 @@ program define parallelize, eclass
 	tempname remoteDir    // directory on remote machine
 	_setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
 	
-	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
 	
 	*** Here we need machinery to farm out the work and collect results; we need
@@ -209,7 +208,7 @@ program define _setupAndSubmit, sclass
 	*** Compose and write out REMOTE SUBMIT SCRIPT
 	file open `submitHandle' using `remoteSubmit', write
 	file write `submitHandle' "cd `remoteDir'/logs && "
-	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b ../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' `cbfreq' `email' `nodes' `ppn' `pmem' `walltime' && "
+	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b ../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' 0 `cbfreq' `email' `nodes' `ppn' `pmem' `walltime' && "
 	file write `submitHandle' "echo 'Done!'"
 	file close `submitHandle'
 
