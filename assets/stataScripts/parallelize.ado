@@ -81,7 +81,7 @@ program define parallelize, eclass
 	_parseSpecs `"`execspecs'"'
 	
 	*** <><><> Collect and check user input
-	foreach arg in nrep cbfreq email {
+	foreach arg in nrep cbfreq {
 		if "`s(`arg')'" ~= "" {
 			local `arg' "`s(`arg')'"
 		}
@@ -94,16 +94,13 @@ program define parallelize, eclass
 	
 	*** Compose and transfer content to remote machine
 	tempname remoteDir    // directory on remote machine
-	noi _setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
+	noi _setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
 	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
 	
 	*** Here we need machinery to farm out the work and collect results; we need
 	*** a message exchange interface for the user; need api functionality for 
 	*** pulling and pushing data
-	
-	*** Execute the command
-	* `command'
 
 end
 
@@ -114,7 +111,7 @@ program define _parseSpecs, sclass
 
 	args specs
 
-	local rightHS "([a-zA-Z0-9\\\/:~,\._ ]*)"
+	local rightHS "([a-zA-Z0-9@\\\/:~,\._ ]*)"
 	local strregex "([a-zA-Z]+)[ ]*=[ ]*(\'|\"|[ ]*)`rightHS'(\'|\"|[ ]*)"
 
 	while regexm(`"`specs'"', `"`strregex'"') {
@@ -155,8 +152,6 @@ program define _setupAndSubmit, sclass
 
 	args host remoteDir dfile dloc url command nrep jobname callback email nodes ppn pmem walltime
 	
-	
-	noi di " `host' `remoteDir' `dfile' `dloc' `url' `command' `nrep' `jobname' `callback' `email' `nodes' `ppn' `pmem' `walltime'"
 	*** LOCATION OF DATA
 	if "`dloc'" == "local" {
 		if regexm("`dfile'", "^(.+/)*(.+)$") {
@@ -171,6 +166,12 @@ program define _setupAndSubmit, sclass
 		*** box ***
 	}
 	
+	
+	*** Handle no email request
+	if "`email'" == "" {
+		local email = 0
+	}
+
 	*** REMOTE WORK FILE  *** FIX RANDOM SEED GENERATOR!!!
 	tempfile workJob 
 	tempname workHandle
@@ -191,11 +192,12 @@ program define _setupAndSubmit, sclass
 	
 	*** REMOTE SETUP SCRIPT
 	
-	tempfile remoteDirs
+	tempfile remoteSetup
 	tempname dirsHandle
 	
 	*** Compose and write out REMOTE SETUP SCRIPT
-	file open `dirsHandle' using `remoteDirs', write
+	file open `dirsHandle' using `remoteSetup', write
+	file write `dirsHandle' "echo '`remoteDir'' > .parallelizeStataBasename && "
 	file write `dirsHandle' "mkdir -p `remoteDir'/scripts `remoteDir'/data  `remoteDir'/logs && "
 	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output && "
 *	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/_runBundle.do -P ./`remoteDir'/scripts/; "
@@ -233,7 +235,7 @@ program define _setupAndSubmit, sclass
 	}
 	
 	**** Write out the command string
-	local myCommand "echo 'Setting up directory structure... '; `osCat' `remoteDirs'| ssh `host' 'bash -s';"
+	local myCommand "echo 'Setting up directory structure... '; `osCat' `remoteSetup'| ssh `host' 'bash -s';"
 	local myCommand "`myCommand' echo 'Copying work file... '; scp -q `workJob' `host':~/`remoteDir'/scripts/_workJob.do; echo 'Done!';"
 	if "`dloc'" == "local" {
 		local myCommand "`myCommand' echo 'Copying data... '; scp -q `dfile' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
@@ -294,7 +296,33 @@ program define _setupAndSubmit, sclass
 	
 end
 	
+*** Check progress of job
+capture program drop checkProgress
+program define checkProgress
+*** Establish a connection
+*** Show the number of active jobs
 
+end
+
+*** Collecting results and bringing them back to local machine
+*** This is basically parallelize postprocessing
+capture program drop outRetrieve
+program define outRetrieve, sclass
+
+*** Establish a connection
+*** Retrieve the contents of .parallelizeStataBasename
+*** Append all files
+*** Copy file over to a directory
+*** Delete basename dir and and .parallelizeStataBasename
+
+end
+
+
+	
+exit
+	
+	
+	
 	
 	
 /*

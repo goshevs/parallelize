@@ -25,7 +25,7 @@ clear
 *** Run code
 parallelize,  /// 
         con(sshHost="sirius") /// con(configFile = "`locConf'"  profile="sirius") ///  
-        job(nodes="1" ppn="1" pmem="1gb" walltime="00:10:00" jobname="myTest")  ///
+        job(nodes="1" ppn="1" pmem="1gb" walltime="00:05:00" jobname="myTest")  ///
         data(file= "`locData'" loc="local") ///
         exec(nrep="10" cbfreq="30s" email="`eMailAddress'" ): mytest x1, c(sum) //pURL = "`locProg'"
 
