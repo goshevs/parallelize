@@ -77,13 +77,13 @@ parallelize, CONspecs(string asis) [JOBspecs(string asis) ///
 
 **Syntax for `CONspecs`**
 
-`CONSpecs` can be specified in two ways:
+`CONspecs` can be specified in two ways:
 
-- `con(configFile = "confLocation" profile="profileName")`, where
-	- `confLocation` is the path and file name of the configuration file to be used by 
+- `con(configFile="" profile="")`, where
+	- `configFile` is the path and file name of the configuration file to be used by 
 	`ssh` to connection to the cluster
-	- `profileName` is the name of the profile in the configuration file to be used
-- `con(ssh="sshHost")`, where:
+	- `profile` is the name of the profile in the configuration file to be used, or
+- `con(sshHost="")`, where:
 	- `sshHost` is the name of the host in the ssh `config` file located in `.ssh/` to be 
 	used to connect to the cluster
 
@@ -96,20 +96,21 @@ The configuration file should be specified in
 
 `JOBspecs` defines the resource requirements for a parallel job. It has the following syntax:
 
-`job(nodes="" ppn="" walltime="" jobname="")`
+`job(nodes="" ppn="" pmem="" walltime="" jobname="")`
 
 where:
 
 - `nodes` is the number of nodes requested
-- `ppn` is the number of processors per node 
-- `walltime` is the length time for the job
+- `ppn` is the number of virtual processors per node 
+- `pmem` is the RAM per processor
+- `walltime` is the length of time allocated to the job, or job's runtime
 - `jobname` is the name that will be applied to all parallel jobs
 
 <br>
 
 **Syntax for `DATAspecs`**
 
-`DATASpecs` defines the data file and its location. It is specified in the following way:
+`DATAspecs` defines the data file and its location. It is specified in the following way:
  
 `data(inFile="" loc="")`
 
@@ -125,12 +126,15 @@ data file is housed.
 
 `EXECspecs` defines execution parameters. It has the following syntax:
 
-`exec(nrep="" progUrl="")`
+`exec(nrep="" progUrl="" cbfreq="" email="" )`
 
 where: 
 
 - `nrep` is the number of parallel jobs needed
 - `progUrl` is the URL of a `do` or `ado` file which has to be imported prior to running `command`.
+- `cbfreq` is the callback frequency of the monitoring process (could be defined in seconds, minutes, hours and days)
+- `email` instructs Torque to send an email to the specified email address once all jobs are completed.
+
 
 <br>
 
@@ -141,29 +145,23 @@ Examples (preliminary)
 local pathBasename "~/Desktop/gitProjects/parallelize"
 
 *** Load the ado's
-do "`pathBasename'/assets/stataScripts/parallelize.ado"  // we should pull this from gitHub
-
-
-*** Behavior under parallelize
-*parallelize, con(sshHost="cluster1"): mytest myvar, c(sum)
+do "`pathBasename'/assets/stataScripts/parallelize.ado"
 
 *** Define locations
 local locConf "`pathBasename'/config1"
 local locData "c:/Users/goshev/Desktop/gitProjects/parallelize/myData.dta"  // full path is required (for scp)
 local locProg "https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/mytest.ado"
-
+local eMailAddress "myemailaddress@host.domain" 
 
 *** Generate data
 do "`pathBasename'/examples/simdata.do"
 save "`pathBasename'/myData", replace
 clear
 
-* capture erase "~/Desktop/test.do"
-
-*** Parallelize command
+*** Run code
 parallelize,  /// 
         con(sshHost="sirius") /// con(configFile = "`locConf'"  profile="sirius") ///  
-        job(nodes="1" ppn="1" walltime="00:10:00" jobname="myTest")  ///
+        job(nodes="1" ppn="1" pmem="1gb" walltime="00:10:00" jobname="myTest")  ///
         data(file= "`locData'" loc="local") ///
-        exec(nrep="10" pURL = "`locProg'"): mytest x1, c(sum)
+        exec(nrep="10" cbfreq="30s" pURL = "`locProg'" email="`eMailAddress'" ): mytest x1, c(sum) 
 ```
