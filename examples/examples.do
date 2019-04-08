@@ -13,7 +13,7 @@ do "`pathBasename'/assets/stataScripts/parallelize.ado"  // we should pull this 
 local locConf "`pathBasename'/config1"
 local locData "c:/Users/goshev/Desktop/gitProjects/parallelize/myData.dta"  // full path is required (for scp)
 local locProg "https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/mytest.ado"
-local eMailAddress "" 
+local eMailAddress "goshev@bc.edu" 
 
 *** Generate data
 do "`pathBasename'/examples/simdata.do"
@@ -27,7 +27,7 @@ parallelize,  ///
         con(sshHost="sirius") /// con(configFile = "`locConf'"  profile="sirius") ///  
         job(nodes="1" ppn="1" pmem="1gb" walltime="00:10:00" jobname="myTest")  ///
         data(file= "`locData'" loc="local") ///
-        exec(nrep="10" cbfreq="5m" email="`eMailAddress'" pURL = "`locProg'"): mytest x1, c(sum)
+        exec(nrep="10" cbfreq="30s" email="`eMailAddress'" ): mytest x1, c(sum) //pURL = "`locProg'"
 
 sreturn list
 

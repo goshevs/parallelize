@@ -5,10 +5,13 @@ program define mytest
 	syntax varname, Command(string asis)
 	
 	if "`c(prefix)'" == "parallelize" {
+		sleep 60000 // 1 min; 10000 = 10 sec
 		bsample
 		`command' `1'
 	}
 	else {
+		sleep 60000
+		bsample
 		`command' `1'
 	}
 end

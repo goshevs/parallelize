@@ -34,7 +34,7 @@ program define _submitMaster
 	local spoolerTail "EOF2`=char(10)'"
 	local monitorHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF3`=char(10)'#PBS -N monitorJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local monitorResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'#PBS -m e`=char(10)'#PBS -M `email'`=char(10)'"
-	local monitorWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do monitor `remoteScripts' `nrep' `jobName' 0 `callBack'`=char(10)'"
+	local monitorWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'module load moab`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do monitor `remoteScripts' `nrep' `jobName' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime'`=char(10)'"
 	local monitorTail "EOF3`=char(10)'"
 	local masterTail "EOF1`=char(10)'"
 
@@ -164,18 +164,20 @@ else if "`request'" == "monitor" {
 	*** Parse callBack //sleep 600000 = 10 minutes
 	_cbTranslate "`callBack'"
 	local callBackTR "`s(lenSleep)'"
-	_waitAndCheck "`callBackTR'" "`c(username)'_`jobName'"
+	
+	_waitAndCheck "`callBackTR'" "spoolerJob" // wait for spooler job to complete
+	_waitAndCheck "`callBackTR'" "`c(username)'_`jobName'"   // wait for work jobs to complete
 	
 	*** Count how many output files we have
-	ashell ls `remoteScripts'/data/output/\*.dta | wc -l
+	ashell ls `remoteScripts'/data/output | wc -l
 	local lostJobs = `nrep' - `r(o1)'   // calculate missing jobs
 	while `lostJobs' > 0 {
 		forval i=1/`lostJobs' { 
-			_submitWork "`remoteScripts'" "`c(username)'_`jobName'" // launch additional jobs
+			_submitWork "`remoteScripts'" "`c(username)'_`jobName'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
 		}
 		_waitAndCheck "`callBackTR'" "`c(username)'_`jobName'"
 		
-		ashell ls `remoteScripts'/data/output/\*.dta | wc -l
+		ashell ls `remoteScripts'/data/output | wc -l
 		local lostJobs = `nrep' - `r(o1)'
 	}
 }
