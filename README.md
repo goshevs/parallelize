@@ -36,7 +36,7 @@ Over the past several months, we reached a couple of important milestones:
 1. We developed a python API to Box that enables pulling and pushing of
 data directly from/to Box, thus eliminating a series of intermediate steps.
 
-2. We developed and tested successfully the job submission interface.
+2. We developed and tested successfully the job submission and monitoring functionality.
 
 **Development continues!**
 

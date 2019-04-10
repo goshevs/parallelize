@@ -96,6 +96,42 @@ end
 
 
 
+************************
+*** WORK COLLECTION program
+
+capture program drop _collectWork
+program define _collectWork, sclass
+
+	args remoteScripts jobName
+	
+	*** Compose the submit file
+	local pbsHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF`=char(10)'#PBS -N collectJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local pbsResources "#PBS -l nodes=1:ppn=4,pmem=10gb,walltime=120:00:00`=char(10)'"
+	local pbsCommands "module load stata/15`=char(10)'cd `remoteScripts'/logs`=char(10)'"
+	local pbsDofile "stata-mp -b `remoteScripts'/scripts/_runBundle.do collect `remoteScripts' 0 `jobname'"  
+	local pbsEnd "`=char(10)'EOF`=char(10)'"
+	
+	*** Combine all parts
+	local pbsFileContent `"`pbsTitle'`pbsHeader'`pbsResources'`pbsCommands'`pbsDofile'"'
+
+	*** Initialize a filename and a temp file
+	tempfile pbsSubmit
+	tempname myfile
+	
+	*** Write out the content to the file
+	file open `myfile' using `pbsSubmit', write text replace
+	file write `myfile' `"`pbsFileContent'"'
+	file write `myfile' `"`pbsEnd'"'
+	file close `myfile'
+
+	*** Submit to sirius
+	shell cat `pbsSubmit' | bash -s
+end
+
+
+
+
+
 **** Process checker program
 capture program drop _waitAndCheck
 program define _waitAndCheck
@@ -177,6 +213,8 @@ else if "`request'" == "monitor" {
 	*** Count how many output files we have
 	ashell ls `remoteScripts'/data/output | wc -l
 	local lostJobs = `nrep' - `r(o1)'   // calculate missing jobs
+	
+	*** If there are lost jobs, run more
 	while `lostJobs' > 0 {
 		forval i=1/`lostJobs' { 
 			_submitWork "`remoteScripts'" "`c(username)'_`jobName'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
@@ -186,6 +224,26 @@ else if "`request'" == "monitor" {
 		ashell ls `remoteScripts'/data/output | wc -l
 		local lostJobs = `nrep' - `r(o1)'
 	}
+	
+	*** Collect data
+	_collectWork "`remoteScripts'" "`jobName'"
+	
+}
+else if "`request'" == "collect" {
+	
+	local outputFiles: dir "`remoteScripts'/data/output" files "*.dta"
+	local count = 1
+	foreach outFile of local outputFiles {
+		if `count' == 1 {
+			use "`remoteScripts'/data/output/`outFile'", clear
+		}
+		else {
+			append using "`remoteScripts'/data/output/`outFile'", clear
+		}
+		local ++count
+	}
+	save "`remoteScripts'/data/final/parallelize_`jobname'", replace
+	
 }
 else {
 	noi di in r "Invalid request"

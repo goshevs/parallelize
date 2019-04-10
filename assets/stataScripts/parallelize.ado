@@ -11,7 +11,7 @@
 
 ***This is a prefix program (just like bootstrap, mi, xi, etc)
 capture program drop parallelize
-program define parallelize, eclass
+program define parallelize, sclass
 
 	set prefix parallelize
 	
@@ -95,6 +95,8 @@ program define parallelize, eclass
 	*** Compose and transfer content to remote machine
 	tempname remoteDir    // directory on remote machine
 	noi _setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
+	
+	sreturn local command "parallelize"
 	
 	*** We can feed c(prefix) to -pchained-, -ifeats-, etc. (see conditionals in mytest)
 	
@@ -197,9 +199,9 @@ program define _setupAndSubmit, sclass
 	
 	*** Compose and write out REMOTE SETUP SCRIPT
 	file open `dirsHandle' using `remoteSetup', write
-	file write `dirsHandle' "echo '`remoteDir'' > .parallelizeStataBasename && "
+	file write `dirsHandle' "echo '`remoteDir'' > .parallelize_st_bn_`jobname' && "
 	file write `dirsHandle' "mkdir -p `remoteDir'/scripts `remoteDir'/data  `remoteDir'/logs && "
-	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output && "
+	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output `remoteDir'/data/final && "
 *	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/_runBundle.do -P ./`remoteDir'/scripts/; "
 	file write `dirsHandle' "echo 'Done!'"
 	file close `dirsHandle'
@@ -304,11 +306,85 @@ program define checkProgress
 
 end
 
+
 *** Collecting results and bringing them back to local machine
 *** This is basically parallelize postprocessing
 capture program drop outRetrieve
 program define outRetrieve, sclass
 
+	*** <><><> Check to see whether sreturn has been wiped
+	if "`s(command)'" ~= "parallelize" {
+	
+		syntax, CONspecs(string asis) jobname(string asis)
+		
+		*** Parse connection specs
+		_parseSpecs `"`conspecs'"'
+
+		*** Collect all parameters
+		if "`s(sshHost)'" == "" {  // if no .ssh configuration for the connection
+		
+			*** Parse the config file
+			noi _parseConfig
+			
+			*** <><><> Collect and check user input
+			foreach arg in username host port {
+				if "`s(`arg')'" ~= "" {
+					local `arg' "`s(`arg')'"
+				}
+				else {
+					noi di _n in r "Please, provide argument `arg' in connection specs"
+					exit 489
+				}
+			}
+			local host "`username'@`host'"
+		}
+		else {
+			local host "`s(sshHost)'"
+		}
+	}
+	else {
+		local host "`s(host)'"
+		local jobname "`s(jobname)'"
+	}
+	
+	
+	*** SSH to the cluster
+	ashell powershell.exe -noexit -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'"
+	
+	local remoteDir "`r(o1)'"
+	***<><><> Check if remote directory exists
+
+	shell powershell.exe -noexit -command "scp `host':~/`remoteDir'/data/final/\*.dta ~/Desktop/"
+	
+	
+	
+	/*
+	if "`c(os)'" == "Windows" {
+		local osCat "Get-Content -Raw"
+		local shellCommand "powershell.exe -command"
+	}
+	else {
+		local osCat "cat"
+		local shellCommand ""
+	}
+	
+	**** Write out the command string
+	local myCommand "echo 'Setting up directory structure... '; `osCat' `remoteSetup'| ssh `host' 'bash -s';"
+	local myCommand "`myCommand' echo 'Copying work file... '; scp -q `workJob' `host':~/`remoteDir'/scripts/_workJob.do; echo 'Done!';"
+	if "`dloc'" == "local" {
+		local myCommand "`myCommand' echo 'Copying data... '; scp -q `dfile' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
+	}
+	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/_runBundle.do `host':~/`remoteDir'/scripts/; echo 'Done!';"
+	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/mytest.ado `host':~/`remoteDir'/scripts/; echo 'Done!';"
+
+	local myCommand "`myCommand' echo 'Submitting masterJob... '; `osCat' `remoteSubmit' | ssh `host' 'bash -s';"
+	
+	*** Execute the command
+	shell `shellCommand' "`myCommand'"
+	
+	*/
+	
+	
 *** Establish a connection
 *** Retrieve the contents of .parallelizeStataBasename
 *** Append all files
