@@ -301,9 +301,63 @@ end
 *** Check progress of job
 capture program drop checkProgress
 program define checkProgress
-*** Establish a connection
-*** Show the number of active jobs
 
+	syntax [, CONspecs(string asis) jobname(string asis) username(string asis)]
+	
+	qui {
+		*** Collect all parameters
+		if "`s(sshHost)'" == "" {  // if no .ssh configuration for the connection
+		
+			*** Parse connection specs
+			_parseSpecs `"`conspecs'"'
+				
+			*** Parse the config file
+			noi _parseConfig
+			
+			*** <><><> Collect and check user input
+			foreach arg in username host port {
+				if "`s(`arg')'" ~= "" {
+					local `arg' "`s(`arg')'"
+				}
+				else {
+					noi di _n in r "Please, provide argument `arg' in connection specs"
+					exit 489
+				}
+			}
+			local host "`username'@`host'"
+			if "`jobname'" == "" {
+				noi di in r "jobname is a required argument"
+				exit 489
+			}
+		}
+		else {
+			local host "`s(sshHost)'"
+			local jobname "`s(jobname)'"
+			if "`username'" == "" {
+				noi di in r "username is a required argument"
+				exit 489
+			}
+		}
+		
+		*** Show the number of active jobs
+		
+		ashell powershell.exe -command "ssh `host' 'showq -n -r | grep `username' | grep `jobname' | wc -l; showq -n -i | grep `username' | grep `jobname' | wc -l; date'"
+		local runningJobs "`r(o1)'"
+		local idleJobs "`r(o2)'"
+		local time "`r(o3)'"
+		
+		noi di _n in y "***********************************************************" _n ///
+					   "* Report on running and idle jobs " _n ///
+					   "* Time: `time'"  _n ///
+					   "***********************************************************" _n ///
+					   "* Username: `username'" _n ///
+					   "* Jobname: `jobname'" _n ///
+					   "* Jobs " _n ///
+					   "*     Completed: ??? " _n ///
+					   "*     Running: `runningJobs'" _n ///
+					   "*     Idle   : `idleJobs'" _n ///
+					   "***********************************************************" 
+	}
 end
 
 
@@ -312,16 +366,16 @@ end
 capture program drop outRetrieve
 program define outRetrieve, sclass
 
-	*** <><><> Check to see whether sreturn has been wiped
-	if "`s(command)'" ~= "parallelize" {
+	syntax, OUTloc(string asis) [CONspecs(string asis) jobname(string asis)]
 	
-		syntax, CONspecs(string asis) jobname(string asis) OUTloc(string asis)
-		
-		*** Parse connection specs
-		_parseSpecs `"`conspecs'"'
 
+	qui {
+	
 		*** Collect all parameters
 		if "`s(sshHost)'" == "" {  // if no .ssh configuration for the connection
+
+			*** Parse connection specs
+			_parseSpecs `"`conspecs'"'
 		
 			*** Parse the config file
 			noi _parseConfig
@@ -340,15 +394,10 @@ program define outRetrieve, sclass
 		}
 		else {
 			local host "`s(sshHost)'"
+			local jobname "`s(jobname)'"
 		}
 	}
-	else {
-		syntax, OUTloc(string asis)
-		
-		local host "`s(sshHost)'"
-		local jobname "`s(jobname)'"
-	}
-	
+
 	
 	*** SSH to the cluster
 	ashell powershell.exe -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'; "
@@ -358,10 +407,10 @@ program define outRetrieve, sclass
 	
 	***<><><> Check if remote directory exists
 
-	shell powershell.exe -noexit -command "scp -r `host':~/`remoteDir'/data/final/ `outloc'"
+	shell powershell.exe -command "scp -r `host':~/`remoteDir'/data/final/ `outloc'"
 	noi di in y _n "Output collected and copied to local machine"
 
-	*** Clean up the cluster
+	*** Clean up the home directory on the cluster
 	
 	
 	

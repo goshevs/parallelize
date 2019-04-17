@@ -5,10 +5,6 @@ local pathBasename "~/Desktop/gitProjects/parallelize"
 *** Load the ado's
 do "`pathBasename'/assets/stataScripts/parallelize.ado"  // we should pull this from gitHub
 
-
-*** Behavior under parallelize
-*parallelize, con(sshHost="cluster1"): mytest myvar, c(sum)
-
 *** Define locations
 local locConf "`pathBasename'/config1"
 local locData "c:/Users/goshev/Desktop/gitProjects/parallelize/myData.dta"  // full path is required (by scp)
@@ -32,20 +28,12 @@ parallelize,  ///
 exit
 
 *** Check progress
-*** TODO
+checkProgress, username(goshev)
 
+exit
 
 *** Collect output from cluster
 local outDir "c:/Users/goshev/Desktop"  // full path is required (by scp)
 outRetrieve, out(`outDir')
 
-
 exit
-
-*** Behavior on its own
-* mytest myvar, c(sum)
-
-*
-* con(configFile = "`locConf'"  profile="cluster1") ///
-        
-		  con(configFile = "`locConf'"  profile="sirius") ///
