@@ -164,7 +164,11 @@ outRetrieve, OUTloc(string)
 
 | argument    | description            |
 |-------------|------------------------|
-| *OUTloc*    | the location on the local machine where output would be stored |
+| *OUTloc*    | the location on the user's machine where output would be stored |
+
+
+Note: `outRetrieve` copies a directory called `final` to `OUTloc`; the file in that 
+directory contains the combined output of all individual jobs.
 
 
 <br>
