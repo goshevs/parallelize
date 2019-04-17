@@ -10,17 +10,17 @@
 
 Although a fairly large number of commands in Stata are internally parallelized,
 the speed of execution of specific algorithms such as bootstrapping, jackknifing and imputation 
-could be accelerated by utilizing a computing cluster. The aim of `parallelize` is to help researchers 
+could be accelerated by utilizing a computing cluster. The aim of package `parallelize` is to help researchers 
 in parallelizing their analyses and submitting jobs directly from their local 
 copy of Stata to the Linux computing cluster at Boston College (and potentially any
 cluster running Torque(PBS)).
 
 
 
-Installation
----
+## Installation
 
-To load `parallelize`, include the following line in your do file:
+
+To load package `parallelize`, include the following line in your do file:
 
 ```
 qui do "https://raw.githubusercontent.com/goshevs/parallelize/master/assets/stataScripts/parallelize.ado"
@@ -28,26 +28,33 @@ qui do "https://raw.githubusercontent.com/goshevs/parallelize/master/assets/stat
 
 <br>
 
-Update on our development effort
----
+## Update on our development effort
+
 
 Over the past several months, we reached a couple of important milestones:
 
 1. We developed a python API to Box that enables pulling and pushing of
 data directly from/to Box, thus eliminating a series of intermediate steps.
 
-2. We developed and tested successfully the job submission and monitoring functionality.
+2. We developed and tested successfully the job submission, monitoring and
+output collection functionality.
 
 **Development continues!**
 
 <br>
 
-Syntax
----
+## Commands in package `parallelize`
+
+### Command `parallelize`
+
+`parallelize` is used to define a connection, decribe the specifics of the job and
+submit jobs to the computing cluster
+
+#### Syntax
 
 ```
-parallelize, CONspecs(string asis) [JOBspecs(string asis) ///
-             DATAspecs(string asis) EXECspecs(string asis)]: command
+parallelize, CONspecs(string) [JOBspecs(string) ///
+             DATAspecs(string) EXECspecs(string)]: command
 
 ```
 <br>
@@ -138,6 +145,31 @@ where:
 
 <br>
 
+### Command `outRetrieve`
+
+`outRetrieve` is used to collect the output of `parallelize`.
+
+
+#### Syntax
+
+```
+outRetrieve, OUTloc(string)
+
+```
+<br>
+
+`outRetrieve` takes the following argument:
+
+**Required**
+
+| argument    | description            |
+|-------------|------------------------|
+| *OUTloc*    | the location on the local machine where output would be stored |
+
+
+<br>
+
+
 Examples (preliminary)
 ---
 
@@ -164,4 +196,11 @@ parallelize,  ///
         job(nodes="1" ppn="1" pmem="1gb" walltime="00:10:00" jobname="myTest")  ///
         data(file= "`locData'" loc="local") ///
         exec(nrep="10" cbfreq="30s" pURL = "`locProg'" email="`eMailAddress'" ): mytest x1, c(sum) 
+		
+		
+		
+*** Collect output from cluster
+local outDir "c:/Users/goshev/Desktop"  // full path is required (by scp)
+outRetrieve, out(`outDir')
+		
 ```

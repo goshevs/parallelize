@@ -35,7 +35,7 @@ exit
 *** TODO
 
 
-*** Collect results
+*** Collect output from cluster
 local outDir "c:/Users/goshev/Desktop"  // full path is required (by scp)
 outRetrieve, out(`outDir')
 
