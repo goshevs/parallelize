@@ -140,6 +140,34 @@ where:
 - `cbfreq` is the callback frequency of the monitoring process (could be defined in seconds, minutes, hours and days)
 - `email` instructs Torque to send an email to the specified email address once all jobs are completed.
 
+<br>
+
+## Command `checkProgress`
+
+`checkProgress` is used to check the progress of the submission.
+
+
+### Syntax
+
+```
+checkProgress [, CONspecs(string) jobname(string) username(string)]
+
+```
+<br>
+
+`checkProgress` takes the following arguments:
+
+**Optional and conditionally required arguments:**
+
+| argument       | description            |
+|----------------|------------------------|
+| *CONspecs*     | connection specification; syntax identical to that in `parallelize` |
+| *jobname*      | job name as provided in `parallelize` |
+| *username*     | user's username on the cluster |
+
+Both `CONspecs` and `jobname` are required arguments if `checkProgress` is not 
+run immediately after `parallelize`. `username` is required if
+a configuration file is not provided.
 
 <br>
 
@@ -156,7 +184,7 @@ outRetrieve, OUTloc(string) [CONspecs(string) jobname(string)]
 ```
 <br>
 
-`outRetrieve` takes the following argument:
+`outRetrieve` takes the following arguments:
 
 **Required**
 
@@ -172,7 +200,7 @@ outRetrieve, OUTloc(string) [CONspecs(string) jobname(string)]
 | argument       | description            |
 |----------------|------------------------|
 | *CONspecs*     | connection specification; syntax identical to that in `parallelize` |
-| *jobname*      | name as provided in `parallelize` |
+| *jobname*      | job name as provided in `parallelize` |
 
 Both `CONspecs` and `jobname` are required arguments if `outRetrieve` is not 
 run immediately after `parallelize`.
