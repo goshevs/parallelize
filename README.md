@@ -239,8 +239,9 @@ parallelize,  ///
         data(file= "`locData'" loc="local") ///
         exec(nrep="10" cbfreq="30s" pURL = "`locProg'" email="`eMailAddress'" ): mytest x1, c(sum) 
 		
-		
-		
+*** Check progress
+checkProgress, username(goshev)
+	
 *** Collect output from cluster
 local outDir "c:/Users/goshev/Desktop"  // full path is required (by scp)
 outRetrieve, out(`outDir')
