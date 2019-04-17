@@ -351,7 +351,7 @@ program define outRetrieve, sclass
 	
 	
 	*** SSH to the cluster
-	ashell powershell.exe -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'"
+	ashell powershell.exe -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'; "
 	
 	local remoteDir "`r(o1)'"
 	* noi di "`remoteDir'"
@@ -361,6 +361,9 @@ program define outRetrieve, sclass
 	shell powershell.exe -noexit -command "scp -r `host':~/`remoteDir'/data/final/ `outloc'"
 	noi di in y _n "Output collected and copied to local machine"
 
+	*** Clean up the cluster
+	
+	
 	
 	
 	/*

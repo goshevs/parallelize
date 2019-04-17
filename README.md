@@ -151,7 +151,7 @@ where:
 ### Syntax
 
 ```
-outRetrieve, OUTloc(string)
+outRetrieve, OUTloc(string) [CONspecs(string) jobname(string)]
 
 ```
 <br>
@@ -164,6 +164,18 @@ outRetrieve, OUTloc(string)
 |-------------|------------------------|
 | *OUTloc*    | the location on the user's machine where output would be stored |
 
+
+<br>
+
+**Optional and conditionally required arguments:**
+
+| argument       | description            |
+|----------------|------------------------|
+| *CONspecs*     | connection specification; syntax identical to that in `parallelize` |
+| *jobname*      | name as provided in `parallelize` |
+
+Both `CONspecs` and `jobname` are required arguments if `outRetrieve` is not 
+run immediately after `parallelize`.
 
 Note: `outRetrieve` copies a directory called `final` to `OUTloc`; the file in that 
 directory contains the combined output of all individual jobs.
