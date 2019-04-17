@@ -1,4 +1,4 @@
-# Stata command `parallelize`
+# Stata package `parallelize`
 
 
 *Developers*: Simo Goshev, Jason Bowman   
