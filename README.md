@@ -43,14 +43,12 @@ output collection functionality.
 
 <br>
 
-## Commands in package `parallelize`
-
-### Command `parallelize`
+## Command `parallelize`
 
 `parallelize` is used to define a connection, decribe the specifics of the job and
 submit jobs to the computing cluster
 
-#### Syntax
+### Syntax
 
 ```
 parallelize, CONspecs(string) [JOBspecs(string) ///
@@ -145,12 +143,12 @@ where:
 
 <br>
 
-### Command `outRetrieve`
+## Command `outRetrieve`
 
 `outRetrieve` is used to collect the output of `parallelize`.
 
 
-#### Syntax
+### Syntax
 
 ```
 outRetrieve, OUTloc(string)
@@ -174,8 +172,8 @@ directory contains the combined output of all individual jobs.
 <br>
 
 
-Examples (preliminary)
----
+## Examples (preliminary)
+
 
 ```
 local pathBasename "~/Desktop/gitProjects/parallelize"
