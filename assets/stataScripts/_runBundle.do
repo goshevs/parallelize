@@ -10,7 +10,7 @@
 **
 **
 
-args request remoteScripts nrep jobName jobID callBack email nodes ppn pmem walltime
+args request remoteScripts nrep jobname jobID callBack email nodes ppn pmem walltime
 
 
 ********************************************************************************
@@ -23,19 +23,19 @@ args request remoteScripts nrep jobName jobID callBack email nodes ppn pmem wall
 capture program drop _submitMaster
 program define _submitMaster
 	
-	args remoteScripts nrep jobName callBack email nodes ppn pmem walltime
+	args remoteScripts nrep jobname callBack email nodes ppn pmem walltime
 	
 	*** Compose the master submit 
 	local masterHeader  "cd `remoteScripts'/logs`=char(10)'qsub << \EOF1`=char(10)'#PBS -N masterJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local masterResources  "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=12:00:00`=char(10)'"
 	local spoolerHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local spoolerResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
-	local spoolerWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do spool `remoteScripts' `nrep' `jobName' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime'`=char(10)'"
+	local spoolerWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do spool `remoteScripts' `nrep' `jobname' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime'`=char(10)'"
 	local spoolerTail "EOF2`=char(10)'"
 	local monitorHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF3`=char(10)'#PBS -N monitorJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local monitorResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
 	local monitorEmail "#PBS -m e`=char(10)'#PBS -M `email'`=char(10)'"
-	local monitorWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'module load moab`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do monitor `remoteScripts' `nrep' `jobName' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime'`=char(10)'"
+	local monitorWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'module load moab`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do monitor `remoteScripts' `nrep' `jobname' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime'`=char(10)'"
 	local monitorTail "EOF3`=char(10)'"
 	local masterTail "EOF1`=char(10)'"
 
@@ -68,10 +68,10 @@ end
 capture program drop _submitWork
 program define _submitWork, sclass
 
-	args remoteScripts jobName nodes ppn pmem walltime
+	args remoteScripts jobname nodes ppn pmem walltime
 	
 	*** Compose the submit file
-	local pbsHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF`=char(10)'#PBS -N `jobName'`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local pbsHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF`=char(10)'#PBS -N `jobname'`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local pbsResources "#PBS -l nodes=`nodes':ppn=`ppn',pmem=`pmem',walltime=`walltime'`=char(10)'"
 	local pbsCommands "module load stata/15`=char(10)'cd `remoteScripts'/logs`=char(10)'"
 	local pbsDofile "stata-mp -b `remoteScripts'/scripts/_runBundle.do work `remoteScripts' 0 na $"  // this is written like this so that Stata can write it properly!
@@ -102,7 +102,7 @@ end
 capture program drop _collectWork
 program define _collectWork, sclass
 
-	args remoteScripts jobName
+	args remoteScripts jobname
 	
 	*** Compose the submit file
 	local pbsHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF`=char(10)'#PBS -N collectJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
@@ -136,14 +136,14 @@ end
 capture program drop _waitAndCheck
 program define _waitAndCheck
 
-	args sleepTime jobName
+	args sleepTime jobname
 	
 	sleep `sleepTime'
-	ashell showq -n | grep `jobName' | wc -l   // install ashell
+	ashell showq -n | grep `jobname' | wc -l   // install ashell
 	
 	while `r(o1)' ~= 0 {
 		sleep `sleepTime'
-		ashell showq -n | grep `jobName' | wc -l
+		ashell showq -n | grep `jobname' | wc -l
 	}
 	
 end
@@ -190,12 +190,12 @@ end
 ********************************************************************************
 
 if "`request'" == "master" {
-	_submitMaster "`remoteScripts'" "`nrep'" "`jobName'" "`callBack'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
+	_submitMaster "`remoteScripts'" "`nrep'" "`jobname'" "`callBack'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
 	
 }	
 else if "`request'" == "spool" {
 	forval i=1/`nrep' { 
-		_submitWork "`remoteScripts'" "`c(username)'_`jobName'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
+		_submitWork "`remoteScripts'" "`c(username)'_`jobname'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
 	}
 }
 else if "`request'" == "work" {
@@ -208,7 +208,7 @@ else if "`request'" == "monitor" {
 	local callBackTR "`s(lenSleep)'"
 	
 	_waitAndCheck "`callBackTR'" "spoolerJob" // wait for spooler job to complete
-	_waitAndCheck "`callBackTR'" "`c(username)'_`jobName'"   // wait for work jobs to complete
+	_waitAndCheck "`callBackTR'" "`c(username)'_`jobname'"   // wait for work jobs to complete
 	
 	*** Count how many output files we have
 	ashell ls `remoteScripts'/data/output | wc -l
@@ -217,16 +217,16 @@ else if "`request'" == "monitor" {
 	*** If there are lost jobs, run more
 	while `lostJobs' > 0 {
 		forval i=1/`lostJobs' { 
-			_submitWork "`remoteScripts'" "`c(username)'_`jobName'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
+			_submitWork "`remoteScripts'" "`c(username)'_`jobname'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
 		}
-		_waitAndCheck "`callBackTR'" "`c(username)'_`jobName'"
+		_waitAndCheck "`callBackTR'" "`c(username)'_`jobname'"
 		
 		ashell ls `remoteScripts'/data/output | wc -l
 		local lostJobs = `nrep' - `r(o1)'
 	}
 	
 	*** Collect data
-	_collectWork "`remoteScripts'" "`jobName'"
+	_collectWork "`remoteScripts'" "`jobname'"
 	
 }
 else if "`request'" == "collect" {
@@ -238,7 +238,7 @@ else if "`request'" == "collect" {
 			use "`remoteScripts'/data/output/`outFile'", clear
 		}
 		else {
-			append using "`remoteScripts'/data/output/`outFile'", clear
+			append using "`remoteScripts'/data/output/`outFile'"
 		}
 		local ++count
 	}

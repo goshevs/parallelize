@@ -188,7 +188,7 @@ program define _setupAndSubmit, sclass
 	file write `workHandle' `"if regexm("\`jobID'", "^([0-9]+).+") {`=char(10)'local pid = "\`=regexs(1)'"`=char(10)'noi di "\`pid'"`=char(10)'set seed \`pid'`=char(10)'local mySeed = \`pid' + 10000000 * runiform()`=char(10)'}`=char(10)'"'
 	file write `workHandle' `"set prefix parallelize`=char(10)'set seed \`mySeed'`=char(10)'noi di "\`mySeed'"`=char(10)'use `dataLoc'`=char(10)'"'
 	file write `workHandle' "`command'`=char(10)'"
-	file write `workHandle' "clear`=char(10)'set obs 1`=char(10)'gen mynum = \`r(mean)'`=char(10)'gen seed = \`mySeed'`=char(10)'save ~/`remoteDir'/data/output/data_\`=regexs(1)', replace"
+	file write `workHandle' "clear`=char(10)'set obs 1`=char(10)'gen mynum = \`r(mean)'`=char(10)'gen seed = \`mySeed'`=char(10)'gen jobID = \`pid'`=char(10)'save ~/`remoteDir'/data/output/data_\`=regexs(1)', replace"
 	file close `workHandle'
 	
 	
@@ -315,7 +315,7 @@ program define outRetrieve, sclass
 	*** <><><> Check to see whether sreturn has been wiped
 	if "`s(command)'" ~= "parallelize" {
 	
-		syntax, CONspecs(string asis) jobname(string asis)
+		syntax, CONspecs(string asis) jobname(string asis) OUTloc(string asis)
 		
 		*** Parse connection specs
 		_parseSpecs `"`conspecs'"'
@@ -343,19 +343,24 @@ program define outRetrieve, sclass
 		}
 	}
 	else {
-		local host "`s(host)'"
+		syntax, OUTloc(string asis)
+		
+		local host "`s(sshHost)'"
 		local jobname "`s(jobname)'"
 	}
 	
 	
 	*** SSH to the cluster
-	ashell powershell.exe -noexit -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'"
+	ashell powershell.exe -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'"
 	
 	local remoteDir "`r(o1)'"
+	* noi di "`remoteDir'"
+	
 	***<><><> Check if remote directory exists
 
-	shell powershell.exe -noexit -command "scp `host':~/`remoteDir'/data/final/\*.dta ~/Desktop/"
-	
+	shell powershell.exe -noexit -command "scp -r `host':~/`remoteDir'/data/final/ `outloc'"
+	noi di in y _n "Output collected and copied to local machine"
+
 	
 	
 	/*

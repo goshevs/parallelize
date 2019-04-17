@@ -10,9 +10,7 @@ program define mytest
 		`command' `1'
 	}
 	else {
-		sleep 60000
-		bsample
-		`command' `1'
+		noi di "`1'"
 	}
 end
 
