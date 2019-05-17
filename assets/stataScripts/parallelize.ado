@@ -92,7 +92,7 @@ program define parallelize, sclass
 			local `arg' "`s(`arg')'"
 		}
 		else {
-			noi di _n in r "Please, provide argument `arg' in execution specs"
+			noi di _n in r "Please, provide argument `arg' in plugins specs"
 			exit 489
 		}
 	}
