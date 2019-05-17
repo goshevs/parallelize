@@ -4,8 +4,10 @@
 **
 **
 ** Simo Goshev, Jason Bowman
+** Lead developer and maintainer: Simo Goshev
 **
-** v. 0.01
+**
+** v. 0.05
 **
 **
 
@@ -22,9 +24,9 @@ program define parallelize, sclass
 	local command `"`s(after)'"'
 	local 0 `"`s(before)'"'
 	
-	syntax, CONspecs(string asis) [JOBspecs(string asis) DATAspecs(string asis) EXECspecs(string asis)  *]
+	syntax, CONspecs(string asis) [JOBspecs(string asis) DATAspecs(string asis) plugins(string asis) EXECspecs(string asis)  *]
 
-	*** Parse connection specs
+	*** Parse CONNECTION specs
 	_parseSpecs `"`conspecs'"'
 
 	*** Collect all parameters
@@ -49,7 +51,7 @@ program define parallelize, sclass
 		local host "`s(sshHost)'"
 	}
 	
-	*** Parse job specs
+	*** Parse JOB specs
 	_parseSpecs `"`jobspecs'"'
 
 	*** <><><> Collect and check user input
@@ -67,16 +69,34 @@ program define parallelize, sclass
 	_parseSpecs `"`dataspecs'"'
 	
 	*** <><><> Collect and check user input
-	foreach arg in file loc {
+	foreach arg in file loc uid {
 		if "`s(`arg')'" ~= "" {
-			local `arg' "`s(`arg')'"
+			if "`arg'" == "uid" {
+				local `arg' "`=subinstr("`s(`arg')'"," ", "##", .)'"
+			}	
+			else {
+				local `arg' "`s(`arg')'"
+			}
 		}
 		else {
 			noi di _n in r "Please, provide argument `arg' in data specs"
 			exit 489
 		}
 	}
-		
+	
+	
+	*** Parse PLUGINS specs
+	_parseSpecs `"`plugins'"'
+	foreach arg in work coll {
+		if "`s(`arg')'" ~= "" {
+			local `arg' "`s(`arg')'"
+		}
+		else {
+			noi di _n in r "Please, provide argument `arg' in execution specs"
+			exit 489
+		}
+	}
+	
 	*** Parse EXEC specs
 	_parseSpecs `"`execspecs'"'
 	
@@ -91,10 +111,12 @@ program define parallelize, sclass
 		}
 	}
 	
-	
 	*** Compose and transfer content to remote machine
-	tempname remoteDir    // directory on remote machine
-	noi _setupAndSubmit "`host'" "`remoteDir'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'"
+	** tempname remoteDir    // directory on remote machine
+	
+	// if command is pchained, need to extract i and t and pass them to _runBundle collect
+	
+	noi _setupAndSubmit "`host'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`work'" "`coll'" "`uid'"
 	
 	sreturn local command "parallelize"
 	
@@ -152,7 +174,12 @@ end
 capture program drop _setupAndSubmit
 program define _setupAndSubmit, sclass
 
-	args host remoteDir dfile dloc url command nrep jobname callback email nodes ppn pmem walltime
+	args host dfile dloc url command nrep jobname callback email nodes ppn pmem walltime work coll uid
+	
+	
+	*** Hash date and time to create a tempdir
+	ashell powershell.exe -command "echo 'Creating a directory name...'; ssh `host' 'date | md5sum | cut -c1-20'"
+	local remoteDir "`r(o2)'"
 	
 	*** LOCATION OF DATA
 	if "`dloc'" == "local" {
@@ -168,28 +195,28 @@ program define _setupAndSubmit, sclass
 		*** box ***
 	}
 	
+	*** Parse out filenames of work and collection files
+	if regexm("`work'", "^(.+/)*(.+)$") {
+		local wFName "`=regexs(2)'"
+	}
+	if regexm("`coll'", "^(.+/)*(.+)$") {
+		local cFName "`=regexs(2)'"
+	}	
+	
 	
 	*** Handle no email request
 	if "`email'" == "" {
 		local email = 0
 	}
 
-	*** REMOTE WORK FILE  *** FIX RANDOM SEED GENERATOR!!!
+
+	*** WRITE REMOTE WORK FILE
 	tempfile workJob 
 	tempname workHandle
 	
-	file open `workHandle' using `workJob', write
-	file write `workHandle' "* This is the work file`=char(10)'"
-	file write `workHandle' "args jobID`=char(10)'"
-	if "`s(pURL)'" ~= "" {
-		file write `workHandle' "do `s(pURL)'`=char(10)'"
-	}
-	file write `workHandle' "do ~/`remoteDir'/scripts/mytest.ado`=char(10)'"
-	file write `workHandle' `"if regexm("\`jobID'", "^([0-9]+).+") {`=char(10)'local pid = "\`=regexs(1)'"`=char(10)'noi di "\`pid'"`=char(10)'set seed \`pid'`=char(10)'local mySeed = \`pid' + 10000000 * runiform()`=char(10)'}`=char(10)'"'
-	file write `workHandle' `"set prefix parallelize`=char(10)'set seed \`mySeed'`=char(10)'noi di "\`mySeed'"`=char(10)'use `dataLoc'`=char(10)'"'
-	file write `workHandle' "`command'`=char(10)'"
-	file write `workHandle' "clear`=char(10)'set obs 1`=char(10)'gen mynum = \`r(mean)'`=char(10)'gen seed = \`mySeed'`=char(10)'gen jobID = \`pid'`=char(10)'save ~/`remoteDir'/data/output/data_\`=regexs(1)', replace"
-	file close `workHandle'
+	// PLUGIN for WORK
+	
+	include `work'
 	
 	
 	*** REMOTE SETUP SCRIPT
@@ -200,8 +227,8 @@ program define _setupAndSubmit, sclass
 	*** Compose and write out REMOTE SETUP SCRIPT
 	file open `dirsHandle' using `remoteSetup', write
 	file write `dirsHandle' "echo '`remoteDir'' > .parallelize_st_bn_`jobname' && "
-	file write `dirsHandle' "mkdir -p `remoteDir'/scripts `remoteDir'/data  `remoteDir'/logs && "
-	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output `remoteDir'/data/final && "
+	file write `dirsHandle' "mkdir -p `remoteDir'/scripts/plugins `remoteDir'/logs && "
+	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output/data/ `remoteDir'/data/output/metadata/  `remoteDir'/data/final/data  `remoteDir'/data/final/metadata && "
 *	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/_runBundle.do -P ./`remoteDir'/scripts/; "
 	file write `dirsHandle' "echo 'Done!'"
 	file close `dirsHandle'
@@ -215,7 +242,8 @@ program define _setupAndSubmit, sclass
 	*** Compose and write out REMOTE SUBMIT SCRIPT
 	file open `submitHandle' using `remoteSubmit', write
 	file write `submitHandle' "cd `remoteDir'/logs && "
-	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b ../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' 0 `callback' `email' `nodes' `ppn' `pmem' `walltime' && "
+	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b "
+	file write `submitHandle' "../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' 0 `callback' `email' `nodes' `ppn' `pmem' `walltime' `wFName' `cFName' `uid' && "
 	file write `submitHandle' "echo 'Done!'"
 	file close `submitHandle'
 
@@ -238,12 +266,14 @@ program define _setupAndSubmit, sclass
 	
 	**** Write out the command string
 	local myCommand "echo 'Setting up directory structure... '; `osCat' `remoteSetup'| ssh `host' 'bash -s';"
-	local myCommand "`myCommand' echo 'Copying work file... '; scp -q `workJob' `host':~/`remoteDir'/scripts/_workJob.do; echo 'Done!';"
+	local myCommand "`myCommand' echo 'Copying work file... '; scp -q `workJob' `host':~/`remoteDir'/scripts/plugins/`wFName'; echo 'Done!';"
+	local myCommand "`myCommand' echo 'Copying collection file... '; scp -q `coll' `host':~/`remoteDir'/scripts/plugins/`cFName'; echo 'Done!';"
+	
 	if "`dloc'" == "local" {
 		local myCommand "`myCommand' echo 'Copying data... '; scp -q `dfile' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
 	}
 	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/_runBundle.do `host':~/`remoteDir'/scripts/; echo 'Done!';"
-	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/mytest.ado `host':~/`remoteDir'/scripts/; echo 'Done!';"
+	* local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/mytest.ado `host':~/`remoteDir'/scripts/; echo 'Done!';"
 
 	local myCommand "`myCommand' echo 'Submitting masterJob... '; `osCat' `remoteSubmit' | ssh `host' 'bash -s';"
 	
@@ -297,7 +327,98 @@ program define _setupAndSubmit, sclass
 	*/
 	
 end
+
+
+*** Utility to check progress and collect output
+capture program drop callCluster
+program define callCluster
 	
+	syntax, Request(string asis) [CONspecs(string asis) JOBspecs(string asis) OUTloc(string asis)]
+	
+	*** Collect all parameters
+	if "`s(sshHost)'" == "" {  // if no .ssh configuration for the connection
+	
+		*** Parse connection specs
+		_parseSpecs `"`conspecs'"'
+			
+		*** Parse the config file
+		noi _parseConfig
+		
+		*** <><><> Collect and check user input
+		foreach arg in username host port {
+			if "`s(`arg')'" ~= "" {
+				local `arg' "`s(`arg')'"
+			}
+			else {
+				noi di _n in r "Please, provide argument `arg' in connection specs"
+				exit 489
+			}
+		}
+		
+		*** Get username from ssh config file
+		*** ssh -G sirius | grep -e "user " | cut -s -d " " -f2
+		
+		local host "`username'@`host'"
+		if "`jobname'" == "" {
+			noi di in r "jobname is a required argument"
+			exit 489
+		}
+	}
+	else {
+		local host "`s(sshHost)'"
+		local jobname "`s(jobname)'"
+		if "`username'" == "" {
+			noi di in r "username is a required argument"
+			exit 489
+		}
+	}
+	
+	
+	local host
+	local jobname
+	local username
+	
+	
+	
+	
+	if "`request'" == "checkProgress" {
+		ashell powershell.exe -command "ssh `host' 'showq -n -r | grep `username' | grep `jobname' | wc -l; showq -n -i | grep `username' | grep `jobname' | wc -l; date'"
+		local runningJobs "`r(o1)'"
+		local idleJobs "`r(o2)'"
+		local time "`r(o3)'"
+		
+		noi di _n in y "***********************************************************" _n ///
+					   "* Report on running and idle jobs " _n ///
+					   "* Time: `time'"  _n ///
+					   "***********************************************************" _n ///
+					   "* Username: `username'" _n ///
+					   "* Jobname: `jobname'" _n ///
+					   "* Jobs " _n ///
+					   "*     Completed: ??? " _n ///
+					   "*     Running: `runningJobs'" _n ///
+					   "*     Idle   : `idleJobs'" _n ///
+					   "***********************************************************" 
+	
+	}
+	else if "`request'" == "collectOutput" {
+		*** SSH to the cluster
+		ashell powershell.exe -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'; "
+		
+		local remoteDir "`r(o1)'"
+	
+		***<><><> Check if remote directory exists
+
+		shell powershell.exe -command "scp -r `host':~/`remoteDir'/data/final/ `outloc'"
+		noi di in y _n "Output collected and copied to `outloc'/final"
+		
+	}
+	else {
+		noi di _n in r "Not a valid request type"
+		exit 489
+	}
+end
+
+
 *** Check progress of job
 capture program drop checkProgress
 program define checkProgress
