@@ -1,8 +1,8 @@
 # Stata package `parallelize`
 
 
-*Developers*: Simo Goshev, Jason Bowman   
-*Maintainer*: Simo Goshev  
+*Lead developer and maintainer*: Simo Goshev  
+*Developers: Jason Bowman   
 *Group*: BC Research Services
 
 
@@ -23,7 +23,7 @@ cluster running Torque(PBS)).
 To load package `parallelize`, include the following line in your do file:
 
 ```
-qui do "https://raw.githubusercontent.com/goshevs/parallelize/master/assets/stataScripts/parallelize.ado"
+do "https://raw.githubusercontent.com/goshevs/parallelize/master/ado/parallelize.ado"
 ```
 
 <br>
@@ -33,11 +33,16 @@ qui do "https://raw.githubusercontent.com/goshevs/parallelize/master/assets/stat
 
 Over the past several months, we reached a couple of important milestones:
 
-1. We developed a python API to Box that enables pulling and pushing of
-data directly from/to Box, thus eliminating a series of intermediate steps.
+1. Pulling data directly from Box, thus eliminating a series of intermediate steps. 
+We are currently developing the Stata interface to python and also aim to provide 
+seemless uploading functionality. 
 
-2. We developed and tested successfully the job submission, monitoring and
-output collection functionality.
+2. Developed and tested successfully the job submission, monitoring and
+output collection functionality (currently streamlining query and collection).
+
+3. Offered support for [`pchained`](https://github.com/goshevs/pchained) as well as user-written routines
+via plugins
+
 
 **Development continues!**
 
@@ -73,12 +78,14 @@ parallelize, CONspecs(string) [JOBspecs(string) ///
 
 | argument       | description            |
 |----------------|------------------------|
-| *JOBspecs*    | the specification of a parallel job; see below for syntax |
+| *JOBspecs*     | the specification of a parallel job; see below for syntax |
 | *DATAspecs*    | specification of the data to be used; see below for syntax |
+| *plugins*      | specification of the data to be used; see below for syntax |
 | *EXECspecs*    | execution specifications; see below for syntax |
 
 
 <br>
+
 
 **Syntax for `CONspecs`**
 
@@ -97,6 +104,7 @@ The configuration file should be specified in
  
 <br>
 
+
 **Syntax for `JOBspecs`**
 
 `JOBspecs` defines the resource requirements for a parallel job. It has the following syntax:
@@ -113,30 +121,52 @@ where:
 
 <br>
 
+
 **Syntax for `DATAspecs`**
 
 `DATAspecs` defines the data file and its location. It is specified in the following way:
  
-`data(inFile="" loc="")`
+`data(inFile="" loc="" argPass="")`
 
 where:
 
 - `inFile` should include the path and name of the data file
 - `loc` takes the values of `local`, `cluster`, or `box` to indicate where the
 data file is housed.
+- `argPass` takes a string with information that the user wishes to pass to their do files.
 
 <br>
+
+
+**Syntax for `plugins`**
+
+`plugins` defines the location of work and collection files. It is specified in the following way:
+ 
+`plugins(work="" coll="")`
+
+where:
+
+- `work` should include the path and name of the do file to be executed by 
+each worker on the cluster
+- `coll` should include the path and name of the do file that tells stata how to 
+combine the output provided by the workers
+
+There are special rules for writing the two plugin files. More details will be
+provided later.
+ 
+<br>
+
 
 **Syntax for `EXECspecs`**
 
 `EXECspecs` defines execution parameters. It has the following syntax:
 
-`exec(nrep="" progUrl="" cbfreq="" email="" )`
+`exec(nrep="" pURL="" cbfreq="" email="" )`
 
 where: 
 
 - `nrep` is the number of parallel jobs needed
-- `progUrl` is the URL of a `do` or `ado` file which has to be imported prior to running `command`.
+- `pURL` is the URL of a `do` or `ado` file which has to be imported prior to running `command`.
 - `cbfreq` is the callback frequency of the monitoring process (could be defined in seconds, minutes, hours and days)
 - `email` instructs Torque to send an email to the specified email address once all jobs are completed.
 
