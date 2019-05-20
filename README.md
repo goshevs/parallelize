@@ -2,7 +2,7 @@
 
 
 *Lead developer and maintainer*: Simo Goshev  
-*Developers: Jason Bowman   
+*Developers*: Jason Bowman   
 *Group*: BC Research Services
 
 
