@@ -40,7 +40,7 @@ seemless uploading functionality.
 2. Developed and tested successfully the job submission, monitoring and
 output collection functionality (currently streamlining query and collection).
 
-3. Offered support for [`pchained`](https://github.com/goshevs/pchained) as well as user-written routines
+3. Added support for [`pchained`](https://github.com/goshevs/pchained) and user-written routines
 via plugins
 
 
