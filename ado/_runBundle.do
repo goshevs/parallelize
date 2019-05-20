@@ -10,7 +10,7 @@
 **
 **
 
-args request remoteScripts nrep jobname jobID callBack email nodes ppn pmem walltime wFName cFName uid
+args request remoteDir nrep jobname jobID callBack email nodes ppn pmem walltime wFName cFName uid
 
 
 ********************************************************************************
@@ -23,19 +23,19 @@ args request remoteScripts nrep jobname jobID callBack email nodes ppn pmem wall
 capture program drop _submitMaster
 program define _submitMaster
 	
-	args remoteScripts nrep jobname callBack email nodes ppn pmem walltime wFName cFName uid
+	args remoteDir nrep jobname callBack email nodes ppn pmem walltime wFName cFName uid
 	
 	*** Compose the master submit 
-	local masterHeader  "cd `remoteScripts'/logs`=char(10)'qsub << \EOF1`=char(10)'#PBS -N masterJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local masterHeader  "cd `remoteDir'/logs`=char(10)'qsub << \EOF1`=char(10)'#PBS -N masterJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local masterResources  "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=12:00:00`=char(10)'"
-	local spoolerHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local spoolerHeader "cd `remoteDir'/logs`=char(10)'qsub << \EOF2`=char(10)'#PBS -N spoolerJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local spoolerResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
-	local spoolerWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do spool `remoteScripts' `nrep' `jobname' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime' `wFName'`=char(10)'"
+	local spoolerWork "cd `remoteDir'/logs`=char(10)'module load stata/15`=char(10)'stata-mp -b `remoteDir'/scripts/_runBundle.do spool `remoteDir' `nrep' `jobname' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime' `wFName'`=char(10)'"
 	local spoolerTail "EOF2`=char(10)'"
-	local monitorHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF3`=char(10)'#PBS -N monitorJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local monitorHeader "cd `remoteDir'/logs`=char(10)'qsub << \EOF3`=char(10)'#PBS -N monitorJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local monitorResources "#PBS -l nodes=1:ppn=1,pmem=1gb,walltime=120:00:00`=char(10)'"
 	local monitorEmail "#PBS -m e`=char(10)'#PBS -M `email'`=char(10)'"
-	local monitorWork "cd `remoteScripts'/logs`=char(10)'module load stata/15`=char(10)'module load moab`=char(10)'stata-mp -b `remoteScripts'/scripts/_runBundle.do monitor `remoteScripts' `nrep' `jobname' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime' `wFName' `cFName' `uid'`=char(10)'"
+	local monitorWork "cd `remoteDir'/logs`=char(10)'module load stata/15`=char(10)'module load moab`=char(10)'stata-mp -b `remoteDir'/scripts/_runBundle.do monitor `remoteDir' `nrep' `jobname' 0 `callBack' `email' `nodes' `ppn' `pmem' `walltime' `wFName' `cFName' `uid'`=char(10)'"
 	local monitorTail "EOF3`=char(10)'"
 	local masterTail "EOF1`=char(10)'"
 
@@ -68,13 +68,13 @@ end
 capture program drop _submitWork
 program define _submitWork, sclass
 
-	args remoteScripts jobname nodes ppn pmem walltime wFName
+	args remoteDir jobname nodes ppn pmem walltime wFName
 	
 	*** Compose the submit file
-	local pbsHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF`=char(10)'#PBS -N `jobname'`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local pbsHeader "cd `remoteDir'/logs`=char(10)'qsub << \EOF`=char(10)'#PBS -N `jobname'`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local pbsResources "#PBS -l nodes=`nodes':ppn=`ppn',pmem=`pmem',walltime=`walltime'`=char(10)'"
-	local pbsCommands "module load stata/15`=char(10)'cd `remoteScripts'/logs`=char(10)'"
-	local pbsDofile "stata-mp -b `remoteScripts'/scripts/_runBundle.do work `remoteScripts' 0 na $"  // this is written like this so that Stata can write it properly!
+	local pbsCommands "module load stata/15`=char(10)'cd `remoteDir'/logs`=char(10)'"
+	local pbsDofile "stata-mp -b `remoteDir'/scripts/_runBundle.do work `remoteDir' 0 na $"  // this is written like this so that Stata can write it properly!
 	local pbsEnd "PBS_JOBID 0 0 0 0 0 0 `wFName'`=char(10)'EOF`=char(10)'"
 	
 	*** Combine all parts
@@ -102,13 +102,13 @@ end
 capture program drop _collectWork
 program define _collectWork, sclass
 
-	args remoteScripts jobname cFName uid
+	args remoteDir jobname cFName uid
 	
 	*** Compose the submit file
-	local pbsHeader "cd `remoteScripts'/logs`=char(10)'qsub << \EOF`=char(10)'#PBS -N collectJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
+	local pbsHeader "cd `remoteDir'/logs`=char(10)'qsub << \EOF`=char(10)'#PBS -N collectJob`=char(10)'#PBS -S /bin/bash`=char(10)'"
 	local pbsResources "#PBS -l nodes=1:ppn=4,pmem=10gb,walltime=120:00:00`=char(10)'"
-	local pbsCommands "module load stata/15`=char(10)'cd `remoteScripts'/logs`=char(10)'"
-	local pbsDofile "stata-mp -b `remoteScripts'/scripts/_runBundle.do collect `remoteScripts' 0 `jobname' 0 0 0 0 0 0 0 0 `cFName' `uid'"
+	local pbsCommands "module load stata/15`=char(10)'cd `remoteDir'/logs`=char(10)'"
+	local pbsDofile "stata-mp -b `remoteDir'/scripts/_runBundle.do collect `remoteDir' 0 `jobname' 0 0 0 0 0 0 0 0 `cFName' `uid'"
 	local pbsEnd "`=char(10)'EOF`=char(10)'"
 	
 	*** Combine all parts
@@ -190,16 +190,16 @@ end
 ********************************************************************************
 
 if "`request'" == "master" {
-	_submitMaster "`remoteScripts'" "`nrep'" "`jobname'" "`callBack'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`wFName'" "`cFName'" "`uid'"
+	_submitMaster "`remoteDir'" "`nrep'" "`jobname'" "`callBack'" "`email'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`wFName'" "`cFName'" "`uid'"
 	
 }	
 else if "`request'" == "spool" {
 	forval i=1/`nrep' { 
-		_submitWork "`remoteScripts'" "`c(username)'_`jobname'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`wFName'"
+		_submitWork "`remoteDir'" "`c(username)'_`jobname'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`wFName'"
 	}
 }
 else if "`request'" == "work" {
-	do "`remoteScripts'/scripts/plugins/`wFName'" "`jobID'"
+	do "`remoteDir'/scripts/plugins/`wFName'" "`jobID'"
 }
 else if "`request'" == "monitor" {
 
@@ -211,28 +211,28 @@ else if "`request'" == "monitor" {
 	_waitAndCheck "`callBackTR'" "`c(username)'_`jobname'"   // wait for work jobs to complete
 	
 	*** Count how many output files we have
-	ashell ls `remoteScripts'/data/output/data | wc -l
+	ashell ls `remoteDir'/data/output/data | wc -l
 	local lostJobs = `nrep' - `r(o1)'   // calculate missing jobs
 	
 	*** If there are lost jobs, run more
 	while `lostJobs' > 0 {
 		forval i=1/`lostJobs' { 
-			_submitWork "`remoteScripts'" "`c(username)'_`jobname'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`wFName'"
+			_submitWork "`remoteDir'" "`c(username)'_`jobname'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`wFName'"
 		}
 		_waitAndCheck "`callBackTR'" "`c(username)'_`jobname'"
 		
-		ashell ls `remoteScripts'/data/output/data | wc -l
+		ashell ls `remoteDir'/data/output/data | wc -l
 		local lostJobs = `nrep' - `r(o1)'
 	}
 	
 	*** Collect data
-	_collectWork "`remoteScripts'" "`jobname'" "`cFName'" "`uid'"
+	_collectWork "`remoteDir'" "`jobname'" "`cFName'" "`uid'"
 	
 }
 else if "`request'" == "collect" {
 	
 	// PLUGIN for output collection
-	include "`remoteScripts'/scripts/plugins/`cFName'" 
+	include "`remoteDir'/scripts/plugins/`cFName'" 
 }
 else {
 	noi di in r "Invalid request"

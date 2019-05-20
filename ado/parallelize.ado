@@ -24,7 +24,7 @@ program define parallelize, sclass
 	local command `"`s(after)'"'
 	local 0 `"`s(before)'"'
 	
-	syntax, CONspecs(string asis) [JOBspecs(string asis) DATAspecs(string asis) plugins(string asis) EXECspecs(string asis)  *]
+	syntax, CONspecs(string asis) [JOBspecs(string asis) DATAspecs(string asis) plugins(string asis) EXECspecs(string asis) hash *]
 
 	*** Parse CONNECTION specs
 	_parseSpecs `"`conspecs'"'
@@ -69,9 +69,9 @@ program define parallelize, sclass
 	_parseSpecs `"`dataspecs'"'
 	
 	*** <><><> Collect and check user input
-	foreach arg in file loc uid {
+	foreach arg in path loc argPass {
 		if "`s(`arg')'" ~= "" {
-			if "`arg'" == "uid" {
+			if "`arg'" == "argPass" {
 				local `arg' "`=subinstr("`s(`arg')'"," ", "##", .)'"
 			}	
 			else {
@@ -112,11 +112,10 @@ program define parallelize, sclass
 	}
 	
 	*** Compose and transfer content to remote machine
-	** tempname remoteDir    // directory on remote machine
 	
 	// if command is pchained, need to extract i and t and pass them to _runBundle collect
 	
-	noi _setupAndSubmit "`host'" `"`file'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`work'" "`coll'" "`uid'"
+	noi _setupAndSubmit "`host'" `"`path'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`work'" "`coll'" "`argPass'" "`hash'"
 	
 	sreturn local command "parallelize"
 	
@@ -174,25 +173,36 @@ end
 capture program drop _setupAndSubmit
 program define _setupAndSubmit, sclass
 
-	args host dfile dloc url command nrep jobname callback email nodes ppn pmem walltime work coll uid
+	args host path dloc url command nrep jobname callback email nodes ppn pmem walltime work coll uid hash
+	// uid is argPass!
 	
 	
-	*** Hash date and time to create a tempdir
-	ashell powershell.exe -command "echo 'Creating a directory name...'; ssh `host' 'date | md5sum | cut -c1-20'"
-	local remoteDir "`r(o2)'"
+	tempname remoteDir
+	
+	if "`hash'" ~= "" {
+		*** Hash date and time to create a tempdir
+		ashell powershell.exe -command "echo 'Creating a directory name...'; ssh `host' 'date | md5sum | cut -c1-20'"
+		local remoteDir "`r(o2)'"
+	}
 	
 	*** LOCATION OF DATA
-	if "`dloc'" == "local" {
-		if regexm("`dfile'", "^(.+/)*(.+)$") {
+	if regexm("`path'", "^(.+/)*(.+)$") {
+			local fDir `=regexs(1)'
 			local fName `=regexs(2)'
-		}
-		local dataLoc "~/`remoteDir'/data/initial/`fName'"
 	}
-	else if "`dloc'" == "cluster" {
-		local dataLoc "`dfile'"
+	
+	if "`dloc'" == "local" {
+		local scpString "`fDir'/`fName'"
+		if "`fName'" == "" {
+			local scpString "`fDir'/*.*"
+		}
+		local dataDir "~/`remoteDir'/data/initial"
+	}
+	else if "`dloc'" == "remote" {
+		local dataDir "`fDir'/`fName'"
 	}
 	else {
-		*** box ***
+		*** TODO: stored on box ***
 	}
 	
 	*** Parse out filenames of work and collection files
@@ -203,20 +213,31 @@ program define _setupAndSubmit, sclass
 		local cFName "`=regexs(2)'"
 	}	
 	
-	
 	*** Handle no email request
 	if "`email'" == "" {
 		local email = 0
 	}
 
+	*** Format command syntax, extract command name
+	local dCommand: word 1 of `command'
+	local command = ltrim("`command'")
 
+		
 	*** WRITE REMOTE WORK FILE
 	tempfile workJob 
-	tempname workHandle
+	tempname inHandle outHandle
 	
-	// PLUGIN for WORK
-	
-	include `work'
+	// PLUGIN for WORK recasting
+	file open `inHandle' using "`work'", read
+	file open `outHandle' using `workJob', write text replace
+
+	file read `inHandle' line
+	while r(eof) == 0 { 
+		file write `outHandle' `"`line'`=char(10)'"' _n
+		file read `inHandle' line
+	}
+	file close `inHandle'
+	file close `outHandle'
 	
 	
 	*** REMOTE SETUP SCRIPT
@@ -270,7 +291,7 @@ program define _setupAndSubmit, sclass
 	local myCommand "`myCommand' echo 'Copying collection file... '; scp -q `coll' `host':~/`remoteDir'/scripts/plugins/`cFName'; echo 'Done!';"
 	
 	if "`dloc'" == "local" {
-		local myCommand "`myCommand' echo 'Copying data... '; scp -q `dfile' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
+		local myCommand "`myCommand' echo 'Copying data... '; scp -q `scpString' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
 	}
 	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/_runBundle.do `host':~/`remoteDir'/scripts/; echo 'Done!';"
 	* local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/mytest.ado `host':~/`remoteDir'/scripts/; echo 'Done!';"
