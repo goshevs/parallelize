@@ -57,7 +57,8 @@ submit jobs to the computing cluster
 
 ```
 parallelize, CONspecs(string) [JOBspecs(string) ///
-             DATAspecs(string) EXECspecs(string)]: command
+             DATAspecs(string) plugins(string) ///
+             EXECspecs(string)]: command
 
 ```
 <br>
@@ -80,7 +81,7 @@ parallelize, CONspecs(string) [JOBspecs(string) ///
 |----------------|------------------------|
 | *JOBspecs*     | the specification of a parallel job; see below for syntax |
 | *DATAspecs*    | specification of the data to be used; see below for syntax |
-| *plugins*      | specification of the data to be used; see below for syntax |
+| *plugins*      | location of work and aggregation files; see below for syntax |
 | *EXECspecs*    | execution specifications; see below for syntax |
 
 
@@ -140,7 +141,7 @@ data file is housed.
 
 **Syntax for `plugins`**
 
-`plugins` defines the location of work and collection files. It is specified in the following way:
+`plugins` defines the location of work and aggregation files. It is specified in the following way:
  
 `plugins(work="" coll="")`
 
@@ -148,11 +149,10 @@ where:
 
 - `work` should include the path and name of the do file to be executed by 
 each worker on the cluster
-- `coll` should include the path and name of the do file that tells stata how to 
+- `coll` should include the path and name of the do file that instructs Stata how to 
 combine the output provided by the workers
 
-There are special rules for writing the two plugin files. More details will be
-provided later.
+There are special rules for writing these plugins. More details to come.
  
 <br>
 
