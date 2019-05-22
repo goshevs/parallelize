@@ -11,7 +11,7 @@
 Although a fairly large number of commands in Stata are internally parallelized,
 the speed of execution of specific algorithms such as bootstrapping, jackknifing and imputation 
 could be accelerated by utilizing a computing cluster. The aim of package `parallelize` is to help researchers 
-in parallelizing their analyses and submitting jobs directly from their local 
+with parallelizing their analyses and submitting jobs directly from their local 
 copy of Stata to the Linux computing cluster at Boston College (and potentially any
 cluster running Torque(PBS)).
 
@@ -41,7 +41,7 @@ seemless uploading functionality.
 output collection functionality (currently streamlining query and collection).
 
 3. Added support for [`pchained`](https://github.com/goshevs/pchained) and user-written routines
-via plugins
+via script importation.
 
 
 **Development continues!**
@@ -57,7 +57,7 @@ submit jobs to the computing cluster
 
 ```
 parallelize, CONspecs(string) [JOBspecs(string) ///
-             DATAspecs(string) plugins(string) ///
+             DATAspecs(string) imports(string) ///
              EXECspecs(string)]: command
 
 ```
@@ -81,7 +81,7 @@ parallelize, CONspecs(string) [JOBspecs(string) ///
 |----------------|------------------------|
 | *JOBspecs*     | the specification of a parallel job; see below for syntax |
 | *DATAspecs*    | specification of the data to be used; see below for syntax |
-| *plugins*      | location of work and aggregation files; see below for syntax |
+| *imports*      | location of work, aggregation and monitoring files; see below for syntax |
 | *EXECspecs*    | execution specifications; see below for syntax |
 
 
@@ -135,15 +135,16 @@ where:
 - `loc` takes the values of `local`, `cluster`, or `box` to indicate where the
 data file is housed.
 - `argPass` takes a string with information that the user wishes to pass to their do files.
+This is an optional argument.
 
 <br>
 
 
-**Syntax for `plugins`**
+**Syntax for `imports`**
 
-`plugins` defines the location of work and aggregation files. It is specified in the following way:
+`imports` defines the location of work, aggregation and monitoring files. It is specified in the following way:
  
-`plugins(work="" coll="")`
+`imports(work="" coll="" mon="")`
 
 where:
 
@@ -151,8 +152,10 @@ where:
 each worker on the cluster
 - `coll` should include the path and name of the do file that instructs Stata how to 
 combine the output provided by the workers
+- `mon` should include the path and name of the do file that instructs Stata how to
+monitor the submission and re-submit jobs if necessary
 
-There are special rules for writing these plugins. More details to come.
+There are special rules for writing these import files. More details to come.
  
 <br>
 
@@ -166,7 +169,8 @@ There are special rules for writing these plugins. More details to come.
 where: 
 
 - `nrep` is the number of parallel jobs needed
-- `pURL` is the URL of a `do` or `ado` file which has to be imported prior to running `command`.
+- `pURL` is the URL of a `do` or `ado` file which has to be imported prior to running `command`. 
+This is an optional argument
 - `cbfreq` is the callback frequency of the monitoring process (could be defined in seconds, minutes, hours and days)
 - `email` instructs Torque to send an email to the specified email address once all jobs are completed.
 
@@ -242,38 +246,37 @@ directory contains the combined output of all individual jobs.
 <br>
 
 
-## Examples (preliminary)
-
+## Examples
 
 ```
+*** Define basepath
 local pathBasename "~/Desktop/gitProjects/parallelize"
 
 *** Load the ado's
-do "`pathBasename'/assets/stataScripts/parallelize.ado"
+do "`pathBasename'/ado/parallelize.ado"  // we should pull this from gitHub
+
+
+************************************
+*** GENERIC BOOTSTRAP 
+
+sysuse auto
+save "`pathBasename'/examples/data/myboot"
 
 *** Define locations
-local locConf "`pathBasename'/config1"
-local locData "c:/Users/goshev/Desktop/gitProjects/parallelize/myData.dta"  // full path is required (for scp)
-local locProg "https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/mytest.ado"
-local eMailAddress "myemailaddress@host.domain" 
+local locConf "`pathBasename'/config/config1"
+local locData "c:/Users/goshev/Desktop/gitProjects/parallelize/examples/data/myboot.dta"
+local locWork "`pathBasename'/imports/mybootWork.do"
+local locColl "c:/Users/goshev/Desktop/gitProjects/parallelize/imports/mybootCollect.do"  
+local locMon  "c:/Users/goshev/Desktop/gitProjects/parallelize/imports/genericMonitor.do"
+local eMailAddress "" 
 
-*** Generate data
-do "`pathBasename'/examples/simdata.do"
-save "`pathBasename'/myData", replace
-clear
-
-*** Run code
+*** Execute custom command in parallel
 parallelize,  /// 
         con(sshHost="sirius") /// con(configFile = "`locConf'"  profile="sirius") ///  
-        job(nodes="1" ppn="1" pmem="1gb" walltime="00:10:00" jobname="myTest")  ///
-        data(file= "`locData'" loc="local") ///
-        exec(nrep="10" cbfreq="30s" pURL = "`locProg'" email="`eMailAddress'" ): mytest x1, c(sum) 
-		
-*** Check progress
-checkProgress, username(goshev)
-	
-*** Collect output from cluster
-local outDir "c:/Users/goshev/Desktop"  // full path is required (by scp)
-outRetrieve, out(`outDir')
-		
+        job(nodes="1" ppn="1" pmem="1gb" walltime="00:05:00" jobname="myBoot")  ///
+        data(path= "`locData'" loc="local") ///
+        imports(work="`locWork'" coll="`locColl'" mon="`locMon'") ///
+        exec(nrep="5" cbfreq="30s" email="`eMailAddress'"): ///
+        regress price mpg trunk headroom i.foreign, robust
+
 ```

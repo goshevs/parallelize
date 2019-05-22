@@ -24,7 +24,7 @@ program define parallelize, sclass
 	local command `"`s(after)'"'
 	local 0 `"`s(before)'"'
 	
-	syntax, CONspecs(string asis) [JOBspecs(string asis) DATAspecs(string asis) plugins(string asis) EXECspecs(string asis) hash *]
+	syntax, CONspecs(string asis) [JOBspecs(string asis) DATAspecs(string asis) imports(string asis) EXECspecs(string asis) hash *]
 
 	*** Parse CONNECTION specs
 	_parseSpecs `"`conspecs'"'
@@ -69,14 +69,9 @@ program define parallelize, sclass
 	_parseSpecs `"`dataspecs'"'
 	
 	*** <><><> Collect and check user input
-	foreach arg in path loc argPass {
+	foreach arg in path loc {
 		if "`s(`arg')'" ~= "" {
-			if "`arg'" == "argPass" {
-				local `arg' "`=subinstr("`s(`arg')'"," ", "##", .)'"
-			}	
-			else {
-				local `arg' "`s(`arg')'"
-			}
+			local `arg' "`s(`arg')'"
 		}
 		else {
 			noi di _n in r "Please, provide argument `arg' in data specs"
@@ -84,15 +79,20 @@ program define parallelize, sclass
 		}
 	}
 	
+	*** Replace space with ## in the argPass strings 
+	local argPass "0"
+	if "`s(argPass)'" ~= "" {
+		local argPass "`=subinstr("`s(argPass)'"," ", "##", .)'"
+	}
 	
-	*** Parse PLUGINS specs
-	_parseSpecs `"`plugins'"'
-	foreach arg in work coll {
+	*** Parse IMPORTS specs
+	_parseSpecs `"`imports'"'
+	foreach arg in work coll mon {
 		if "`s(`arg')'" ~= "" {
 			local `arg' "`s(`arg')'"
 		}
 		else {
-			noi di _n in r "Please, provide argument `arg' in plugins specs"
+			noi di _n in r "Please, provide argument `arg' in imports specs"
 			exit 489
 		}
 	}
@@ -115,7 +115,7 @@ program define parallelize, sclass
 	
 	// if command is pchained, need to extract i and t and pass them to _runBundle collect
 	
-	noi _setupAndSubmit "`host'" `"`path'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`work'" "`coll'" "`argPass'" "`hash'"
+	noi _setupAndSubmit "`host'" `"`path'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`work'" "`coll'" "`mon'" "`argPass'" "`hash'"
 	
 	sreturn local command "parallelize"
 	
@@ -173,9 +173,8 @@ end
 capture program drop _setupAndSubmit
 program define _setupAndSubmit, sclass
 
-	args host path dloc url command nrep jobname callback email nodes ppn pmem walltime work coll uid hash
-	// uid is argPass!
-	
+	args host path dloc url command nrep jobname callback email nodes ppn pmem walltime work coll mon argPass hash
+
 	
 	tempname remoteDir
 	
@@ -205,13 +204,19 @@ program define _setupAndSubmit, sclass
 		*** TODO: stored on box ***
 	}
 	
-	*** Parse out filenames of work and collection files
+	*** IMPORTS ***
+	
+	*** Parse out filenames of work, collection and monitoring files
 	if regexm("`work'", "^(.+/)*(.+)$") {
 		local wFName "`=regexs(2)'"
 	}
 	if regexm("`coll'", "^(.+/)*(.+)$") {
 		local cFName "`=regexs(2)'"
 	}	
+	if regexm("`mon'", "^(.+/)*(.+)$") {
+		local mFName "`=regexs(2)'"
+	}	
+	
 	
 	*** Handle no email request
 	if "`email'" == "" {
@@ -227,17 +232,24 @@ program define _setupAndSubmit, sclass
 	tempfile workJob 
 	tempname inHandle outHandle
 	
-	// PLUGIN for WORK recasting
+	// PLUGIN for WORK recasting; This is where magic happens
+	
 	file open `inHandle' using "`work'", read
 	file open `outHandle' using `workJob', write text replace
 
 	file read `inHandle' line
 	while r(eof) == 0 { 
-		file write `outHandle' `"`line'`=char(10)'"' _n
+		if regexm(`"`line'"', "^[ ]*\*+.*") {
+			file write `outHandle' `"`macval(line)'`=char(10)'"'
+		}
+		else {
+			file write `outHandle' `"`line'`=char(10)'"'
+		}
 		file read `inHandle' line
 	}
 	file close `inHandle'
 	file close `outHandle'
+	
 	
 	
 	*** REMOTE SETUP SCRIPT
@@ -248,9 +260,9 @@ program define _setupAndSubmit, sclass
 	*** Compose and write out REMOTE SETUP SCRIPT
 	file open `dirsHandle' using `remoteSetup', write
 	file write `dirsHandle' "echo '`remoteDir'' > .parallelize_st_bn_`jobname' && "
-	file write `dirsHandle' "mkdir -p `remoteDir'/scripts/plugins `remoteDir'/logs && "
+	file write `dirsHandle' "mkdir -p `remoteDir'/scripts/imports `remoteDir'/logs && "
 	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output/data/ `remoteDir'/data/output/metadata/  `remoteDir'/data/final/data  `remoteDir'/data/final/metadata && "
-*	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/assets/stataScripts/_runBundle.do -P ./`remoteDir'/scripts/; "
+	* file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/ado/_runBundle.do -P ./`remoteDir'/scripts/; "
 	file write `dirsHandle' "echo 'Done!'"
 	file close `dirsHandle'
 	
@@ -264,7 +276,7 @@ program define _setupAndSubmit, sclass
 	file open `submitHandle' using `remoteSubmit', write
 	file write `submitHandle' "cd `remoteDir'/logs && "
 	file write `submitHandle' "`find /usr/public/stata -name stata-mp 2>/dev/null` -b "
-	file write `submitHandle' "../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' 0 `callback' `email' `nodes' `ppn' `pmem' `walltime' `wFName' `cFName' `uid' && "
+	file write `submitHandle' "../scripts/_runBundle.do master ~/`remoteDir' `nrep' `jobname' 0 `callback' `email' `nodes' `ppn' `pmem' `walltime' `wFName' `cFName' `mFName' `argPass' && "
 	file write `submitHandle' "echo 'Done!'"
 	file close `submitHandle'
 
@@ -287,13 +299,14 @@ program define _setupAndSubmit, sclass
 	
 	**** Write out the command string
 	local myCommand "echo 'Setting up directory structure... '; `osCat' `remoteSetup'| ssh `host' 'bash -s';"
-	local myCommand "`myCommand' echo 'Copying work file... '; scp -q `workJob' `host':~/`remoteDir'/scripts/plugins/`wFName'; echo 'Done!';"
-	local myCommand "`myCommand' echo 'Copying collection file... '; scp -q `coll' `host':~/`remoteDir'/scripts/plugins/`cFName'; echo 'Done!';"
+	local myCommand "`myCommand' echo 'Copying work file... '; scp -q `workJob' `host':~/`remoteDir'/scripts/imports/`wFName'; echo 'Done!';"
+	local myCommand "`myCommand' echo 'Copying collection import... '; scp -q `coll' `host':~/`remoteDir'/scripts/imports/`cFName'; echo 'Done!';"
+	local myCommand "`myCommand' echo 'Copying monitoring import... '; scp -q `mon' `host':~/`remoteDir'/scripts/imports/`mFName'; echo 'Done!';"
 	
 	if "`dloc'" == "local" {
-		local myCommand "`myCommand' echo 'Copying data... '; scp -q `scpString' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
+		local myCommand "`myCommand' echo 'Copying data... '; scp -q `scpString' `host':~/`remoteDir'/data/initial/; echo 'Done!';"
 	}
-	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/_runBundle.do `host':~/`remoteDir'/scripts/; echo 'Done!';"
+	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/ado/_runBundle.do `host':~/`remoteDir'/scripts/; echo 'Done!';"
 	* local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/mytest.ado `host':~/`remoteDir'/scripts/; echo 'Done!';"
 
 	local myCommand "`myCommand' echo 'Submitting masterJob... '; `osCat' `remoteSubmit' | ssh `host' 'bash -s';"
