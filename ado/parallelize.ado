@@ -24,7 +24,7 @@ program define parallelize, sclass
 	local command `"`s(after)'"'
 	local 0 `"`s(before)'"'
 	
-	syntax, CONspecs(string asis) [JOBspecs(string asis) DATAspecs(string asis) imports(string asis) EXECspecs(string asis) hash *]
+	syntax, CONspecs(string asis) [JOBspecs(string asis) DATAspecs(string asis) imports(string asis) EXECspecs(string asis) hash dryrun *]
 
 	*** Parse CONNECTION specs
 	_parseSpecs `"`conspecs'"'
@@ -114,8 +114,9 @@ program define parallelize, sclass
 	*** Compose and transfer content to remote machine
 	
 	// if command is pchained, need to extract i and t and pass them to _runBundle collect
-	
-	noi _setupAndSubmit "`host'" `"`path'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`work'" "`coll'" "`mon'" "`argPass'" "`hash'"
+	if "`dryrun'" == "" {
+		noi _setupAndSubmit "`host'" `"`path'"' `"`loc'"' `"`s(pURL)'"' `"`command'"' "`nrep'" "`jobname'" "`cbfreq'" "`s(email)'" "`nodes'" "`ppn'" "`pmem'" "`walltime'" "`work'" "`coll'" "`mon'" "`argPass'" "`hash'"
+	}
 	
 	sreturn local command "parallelize"
 	
@@ -363,15 +364,28 @@ program define _setupAndSubmit, sclass
 end
 
 
-*** Utility to check progress and collect output
+*** Utility to check progress and pull output
+
 capture program drop callCluster
 program define callCluster
 	
-	syntax, Request(string asis) [CONspecs(string asis) JOBspecs(string asis) OUTloc(string asis)]
+	syntax, Request(string asis) [CONspecs(string asis) JOBspecs(string asis) OUTloc(string asis) KEEPremote]
 	
-	*** Collect all parameters
+	if "`request'" ~= "checkProgress" & "`request'" ~= "pullData" {
+		noi di _n in r "'`request'' is not a valid request type"
+		exit 489
+	}
+
+	noi di in y _n "Connecting to the cluster..."
+	
+	*** Collect CONNECTION parameters
 	if "`s(sshHost)'" == "" {  // if no .ssh configuration for the connection
 	
+		if "`conspecs'" == "" | "`jobspecs'" == "" {	
+			noi di _n in r "Found no connection or job specs left behind by -parallelize-" _n ///
+			"Please, provide these specs to continue."
+			exit 489
+		}
 		*** Parse connection specs
 		_parseSpecs `"`conspecs'"'
 			
@@ -388,258 +402,99 @@ program define callCluster
 				exit 489
 			}
 		}
-		
-		*** Get username from ssh config file
-		*** ssh -G sirius | grep -e "user " | cut -s -d " " -f2
-		
 		local host "`username'@`host'"
-		if "`jobname'" == "" {
-			noi di in r "jobname is a required argument"
-			exit 489
-		}
 	}
 	else {
 		local host "`s(sshHost)'"
-		local jobname "`s(jobname)'"
-		if "`username'" == "" {
-			noi di in r "username is a required argument"
-			exit 489
+		if "`c(os)'" == "Windows" {
+			local getUsername `"powershell.exe -command "ssh -G sirius | Select-String -Pattern 'user\ +'""'
+			qui ashell `getUsername'
+			local username "`r(o2)'"
+			gettoken ltocken username: username, parse(" ")
+			local username = ltrim("`username'")
+		}
+		else {
+			local getUsername `"ssh -G sirius | grep -e "user " | cut -s -d " " -f2"'
+			qui ashell `getUsername'
+			local username "`r(o1)'"
 		}
 	}
 	
+	*** Collect JOB-related parameters
+	local jobname "`s(jobname)'"
+	if "`s(jobname)'" == "" {
+		_parseSpecs `"`jobspecs'"'
+		
+		*** <><><> Collect and check user input
+		foreach arg in jobname {
+			if "`s(`arg')'" ~= "" {
+				local `arg' "`s(`arg')'"
+			}
+			else {
+				noi di _n in r "Please, provide argument `arg' in connection specs"
+				exit 489
+			}
+		}
+	}
 	
-	local host
-	local jobname
-	local username
-	
-	
+	*** Copy to desktop of outloc is not provided
+	if "`outloc'" == "" {
+		local outloc "%HOMEPATH%/Desktop/parallelize-`jobname'"  // this windows!
+		local outlocDisplay "~/Desktop/parallelize-`jobname'"
+	}
 	
 	
 	if "`request'" == "checkProgress" {
-		ashell powershell.exe -command "ssh `host' 'showq -n -r | grep `username' | grep `jobname' | wc -l; showq -n -i | grep `username' | grep `jobname' | wc -l; date'"
+		qui ashell powershell.exe -command "ssh `host' 'showq -n -r | grep `username' | grep `jobname' | wc -l; showq -n -i | grep `username' | grep `jobname' | wc -l; date'"
 		local runningJobs "`r(o1)'"
 		local idleJobs "`r(o2)'"
 		local time "`r(o3)'"
 		
-		noi di _n in y "***********************************************************" _n ///
-					   "* Report on running and idle jobs " _n ///
-					   "* Time: `time'"  _n ///
-					   "***********************************************************" _n ///
-					   "* Username: `username'" _n ///
-					   "* Jobname: `jobname'" _n ///
-					   "* Jobs " _n ///
-					   "*     Completed: ??? " _n ///
-					   "*     Running: `runningJobs'" _n ///
-					   "*     Idle   : `idleJobs'" _n ///
-					   "***********************************************************" 
-	
+		if "`runningJobs'" ~= "0" | "`idleJobs'" ~= "0" {
+		
+			noi di _n in y "***********************************************************" _n ///
+						   "* Report on running and idle jobs " _n ///
+						   "* Time: `time'"  _n ///
+						   "***********************************************************" _n ///
+						   "* Username: `username'" _n ///
+						   "* Jobname: `jobname'" _n ///
+						   "* Jobs " _n ///
+						   "*     Running: `runningJobs'" _n ///
+						   "*     Idle   : `idleJobs'" _n ///
+						   "***********************************************************" 
+		}
+		else {
+			noi di _n in y "***********************************************************" _n ///
+						   "* Report on running and idle jobs " _n ///
+						   "* Time: `time'"  _n ///
+						   "***********************************************************" _n ///
+						   "* Username: `username'" _n ///
+						   "* Jobname: `jobname'" _n ///
+						   "* " _n ///
+						   "* JOB HAS BEEN COMPLETED!" _n ///
+						   "***********************************************************" 
+		}				   
 	}
-	else if "`request'" == "collectOutput" {
+	else if "`request'" == "pullData" {
 		*** SSH to the cluster
-		ashell powershell.exe -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'; "
-		
+		qui ashell powershell.exe -command "ssh `host' 'cat \.parallelize_st_bn_`jobname' | xargs ls -d '"
 		local remoteDir "`r(o1)'"
-	
-		***<><><> Check if remote directory exists
-
-		shell powershell.exe -command "scp -r `host':~/`remoteDir'/data/final/ `outloc'"
-		noi di in y _n "Output collected and copied to `outloc'/final"
 		
-	}
-	else {
-		noi di _n in r "Not a valid request type"
-		exit 489
-	}
-end
+		***<><><> TODO: Check if remote directory exists
+		if ("`remoteDir'" == "." | "`remoteDir'" == "" ){
+			noi di _n in r "The directory of job `jobname' is no longer accessible by this program. " _n ///
+			"The directory and/or associated files may have been removed."
+			exit 489
+		}
 
-
-*** Check progress of job
-capture program drop checkProgress
-program define checkProgress
-
-	syntax [, CONspecs(string asis) jobname(string asis) username(string asis)]
-	
-	qui {
-		*** Collect all parameters
-		if "`s(sshHost)'" == "" {  // if no .ssh configuration for the connection
+		qui shell powershell.exe -command "scp -r `host':~/`remoteDir'/data/final/ `outloc'"
+		noi di in y _n " * Output collected and copied to `outlocDisplay'"
 		
-			*** Parse connection specs
-			_parseSpecs `"`conspecs'"'
-				
-			*** Parse the config file
-			noi _parseConfig
+		if "`keepremote'" == "" {
+			*** Clean up the home directory on the cluster
+			qui shell powershell.exe -command "ssh `host' 'rm -rf ~/.parallelize_st_bn_`jobname' ~/`remoteDir''"
+			noi di _n in y " * Job directory and all related files were purged from the cluster"
+		}
 			
-			*** <><><> Collect and check user input
-			foreach arg in username host port {
-				if "`s(`arg')'" ~= "" {
-					local `arg' "`s(`arg')'"
-				}
-				else {
-					noi di _n in r "Please, provide argument `arg' in connection specs"
-					exit 489
-				}
-			}
-			local host "`username'@`host'"
-			if "`jobname'" == "" {
-				noi di in r "jobname is a required argument"
-				exit 489
-			}
-		}
-		else {
-			local host "`s(sshHost)'"
-			local jobname "`s(jobname)'"
-			if "`username'" == "" {
-				noi di in r "username is a required argument"
-				exit 489
-			}
-		}
-		
-		*** Show the number of active jobs
-		
-		ashell powershell.exe -command "ssh `host' 'showq -n -r | grep `username' | grep `jobname' | wc -l; showq -n -i | grep `username' | grep `jobname' | wc -l; date'"
-		local runningJobs "`r(o1)'"
-		local idleJobs "`r(o2)'"
-		local time "`r(o3)'"
-		
-		noi di _n in y "***********************************************************" _n ///
-					   "* Report on running and idle jobs " _n ///
-					   "* Time: `time'"  _n ///
-					   "***********************************************************" _n ///
-					   "* Username: `username'" _n ///
-					   "* Jobname: `jobname'" _n ///
-					   "* Jobs " _n ///
-					   "*     Completed: ??? " _n ///
-					   "*     Running: `runningJobs'" _n ///
-					   "*     Idle   : `idleJobs'" _n ///
-					   "***********************************************************" 
 	}
 end
-
-
-*** Collecting results and bringing them back to local machine
-*** This is basically parallelize postprocessing
-capture program drop outRetrieve
-program define outRetrieve, sclass
-
-	syntax, OUTloc(string asis) [CONspecs(string asis) jobname(string asis)]
-	
-
-	qui {
-	
-		*** Collect all parameters
-		if "`s(sshHost)'" == "" {  // if no .ssh configuration for the connection
-
-			*** Parse connection specs
-			_parseSpecs `"`conspecs'"'
-		
-			*** Parse the config file
-			noi _parseConfig
-			
-			*** <><><> Collect and check user input
-			foreach arg in username host port {
-				if "`s(`arg')'" ~= "" {
-					local `arg' "`s(`arg')'"
-				}
-				else {
-					noi di _n in r "Please, provide argument `arg' in connection specs"
-					exit 489
-				}
-			}
-			local host "`username'@`host'"
-		}
-		else {
-			local host "`s(sshHost)'"
-			local jobname "`s(jobname)'"
-		}
-	}
-
-	
-	*** SSH to the cluster
-	ashell powershell.exe -command "ssh `host' cat ~/.parallelize_st_bn_`jobname'; "
-	
-	local remoteDir "`r(o1)'"
-	* noi di "`remoteDir'"
-	
-	***<><><> Check if remote directory exists
-
-	shell powershell.exe -command "scp -r `host':~/`remoteDir'/data/final/ `outloc'"
-	noi di in y _n "Output collected and copied to local machine"
-
-	*** Clean up the home directory on the cluster
-	
-	
-	
-	
-	/*
-	if "`c(os)'" == "Windows" {
-		local osCat "Get-Content -Raw"
-		local shellCommand "powershell.exe -command"
-	}
-	else {
-		local osCat "cat"
-		local shellCommand ""
-	}
-	
-	**** Write out the command string
-	local myCommand "echo 'Setting up directory structure... '; `osCat' `remoteSetup'| ssh `host' 'bash -s';"
-	local myCommand "`myCommand' echo 'Copying work file... '; scp -q `workJob' `host':~/`remoteDir'/scripts/_workJob.do; echo 'Done!';"
-	if "`dloc'" == "local" {
-		local myCommand "`myCommand' echo 'Copying data... '; scp -q `dfile' `host':~/`remoteDir'/data/initial/;echo 'Done!';"
-	}
-	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/_runBundle.do `host':~/`remoteDir'/scripts/; echo 'Done!';"
-	local myCommand "`myCommand' scp C:/Users/goshev/Desktop/gitProjects/parallelize/assets/stataScripts/mytest.ado `host':~/`remoteDir'/scripts/; echo 'Done!';"
-
-	local myCommand "`myCommand' echo 'Submitting masterJob... '; `osCat' `remoteSubmit' | ssh `host' 'bash -s';"
-	
-	*** Execute the command
-	shell `shellCommand' "`myCommand'"
-	
-	*/
-	
-	
-*** Establish a connection
-*** Retrieve the contents of .parallelizeStataBasename
-*** Append all files
-*** Copy file over to a directory
-*** Delete basename dir and and .parallelizeStataBasename
-
-end
-
-
-	
-exit
-	
-	
-	
-	
-	
-/*
-local test "con(configFile = 'c:\Users\goshev\Desktop\gitProjects\parallelize\config' profile='sirius')"
-_parseSpecs "`test'"
-local test "con(configFile = '~/Desktop/gitProjects/parallelize/config' profile='sirius')"
-_parseSpecs "`test'"
-
-sreturn list
-*/
-exit
-
-
-
-
-*** Format of connection string:
-**** con([configFile = "<path/filename>" profile="<string>"]|[ssh="<hostName>"])
-*** Examples:
-**** con(configFile = "c:\Users\goshev\Desktop\gitProjects\parallelize\config" profile="sirius") 
-**** con(ssh="sirius")
-
-*** Format of individual job specs:
-**** job(nodes="" ppn="" walltime="" jobname="") // qsub -l and -N arguments
-
-*** Format of data specs:
-**** data(inFile="" loc="<local | cluster | box>") // fname=~/path/filename
-
-*** Format of execution specs:
-**** exec(nrep="" progUrl="")
-
-
-

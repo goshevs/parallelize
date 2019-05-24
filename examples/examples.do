@@ -11,6 +11,7 @@ local pathBasename "~/Desktop/gitProjects/parallelize"
 do "`pathBasename'/ado/parallelize.ado"  // we should pull this from gitHub
 
 
+/*
 ************************************
 *** GENERIC BOOTSTRAP 
 
@@ -35,7 +36,7 @@ parallelize,  ///
 		regress price mpg trunk headroom i.foreign, robust
 
 
-
+*/
 
 ************************************
 *** CUSTOM WORK with generic monitor
@@ -72,7 +73,7 @@ parallelize,  ///
         exec(nrep="5" cbfreq="30s" email="`eMailAddress'" pURL = "`locProg'"): ///
 		mytest x1, c(sum)
 
-
+/*
 
 ************************************
 *** PCHAINED
@@ -112,7 +113,7 @@ parallelize,  ///
 		pchained (s1_i, noimputed scale), i(id) t(time) mio(add(50) chaindots rseed(123456))
 
 
-
+*/
 
 	
 		

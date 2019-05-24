@@ -43,6 +43,9 @@ output collection functionality (currently streamlining query and collection).
 3. Added support for [`pchained`](https://github.com/goshevs/pchained) and user-written routines
 via script importation.
 
+4. Added a post-parallelize program for submitting job-related requests to the cluster.
+Currently supports requests for progress checking and output retrieval.
+
 
 **Development continues!**
 
@@ -176,56 +179,28 @@ This is an optional argument
 
 <br>
 
-## Command `checkProgress`
+## Command `callCluster`
 
-`checkProgress` is used to check the progress of the submission.
-
-
-### Syntax
-
-```
-checkProgress [, CONspecs(string) jobname(string) username(string)]
-
-```
-<br>
-
-`checkProgress` takes the following arguments:
-
-**Optional and conditionally required arguments:**
-
-| argument       | description            |
-|----------------|------------------------|
-| *CONspecs*     | connection specification; syntax identical to that in `parallelize` |
-| *jobname*      | job name as provided in `parallelize` |
-| *username*     | user's username on the cluster |
-
-Both `CONspecs` and `jobname` are required arguments if `checkProgress` is not 
-run immediately after `parallelize`. `username` is required if
-a configuration file is not provided.
-
-<br>
-
-## Command `outRetrieve`
-
-`outRetrieve` is used to collect the output of `parallelize`.
+`callCluster` is used to send requests to the cluster. Currently the program 
+supports requests for checking progress and retrieving output.
 
 
 ### Syntax
 
 ```
-outRetrieve, OUTloc(string) [CONspecs(string) jobname(string)]
-
+callCluster, Request(string asis) [CONspecs(string asis) JOBspecs(string asis) 
+                                  OUTloc(string asis) KEEPremote]
+	
 ```
 <br>
 
-`outRetrieve` takes the following arguments:
+`callCluster` takes the following arguments:
 
 **Required**
 
 | argument    | description            |
 |-------------|------------------------|
-| *OUTloc*    | the location on the user's machine where output would be stored |
-
+| *Request*   | type of request; currently `checkProgress` and `pullData` are supported |
 
 <br>
 
@@ -233,15 +208,13 @@ outRetrieve, OUTloc(string) [CONspecs(string) jobname(string)]
 
 | argument       | description            |
 |----------------|------------------------|
-| *CONspecs*     | connection specification; syntax identical to that in `parallelize` |
-| *jobname*      | job name as provided in `parallelize` |
+| *CONspecs*     | connection specification; syntax identical to the one used in `parallelize` |
+| *JOBspecs*     | takes `jobname` is an agrument and its syntax is `job(jobname="")`; `jobname` is the name of the job of interest |
+| *OUTloc*       | the directory on the user's machine where output should be copied to; default is `~/Desktop` |
+| *KEEPremote*   | instructs Stata to keep the job directorty and related files on the cluster; by default Stata will erase all related files |
 
-Both `CONspecs` and `jobname` are required arguments if `outRetrieve` is not 
-run immediately after `parallelize`.
-
-Note: `outRetrieve` copies a directory called `final` to `OUTloc`; the file in that 
-directory contains the combined output of all individual jobs.
-
+Both `CONspecs` and `JOBspecs` are required arguments if `callCluster` is not 
+run immediately after `parallelize` or the `sreturn` has been cleared.
 
 <br>
 
@@ -278,5 +251,12 @@ parallelize,  ///
         imports(work="`locWork'" coll="`locColl'" mon="`locMon'") ///
         exec(nrep="5" cbfreq="30s" email="`eMailAddress'"): ///
         regress price mpg trunk headroom i.foreign, robust
+		
+		
+*** Check progress
+callCluster, r(checkProgress)
+
+*** Retrieve data
+callCluster, r(pullData)
 
 ```
