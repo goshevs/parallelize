@@ -59,9 +59,8 @@ submit jobs to the computing cluster
 ### Syntax
 
 ```
-parallelize, CONspecs(string) [JOBspecs(string) ///
-             DATAspecs(string) imports(string) ///
-             EXECspecs(string)]: command
+parallelize, CONspecs(string) [JOBspecs(string) DATAspecs(string) 
+                               imports(string) EXECspecs(string)]: command
 
 ```
 <br>
@@ -189,7 +188,7 @@ supports requests for checking progress and retrieving output.
 
 ```
 callCluster, Request(string asis) [CONspecs(string asis) JOBspecs(string asis) 
-                                  OUTloc(string asis) KEEPremote]
+                                   OUTloc(string asis) KEEPremote]
 	
 ```
 <br>
