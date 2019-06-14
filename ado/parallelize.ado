@@ -263,7 +263,9 @@ program define _setupAndSubmit, sclass
 	file write `dirsHandle' "echo '`remoteDir'' > .parallelize_st_bn_`jobname' && "
 	file write `dirsHandle' "mkdir -p `remoteDir'/scripts/imports `remoteDir'/logs && "
 	file write `dirsHandle' "mkdir -p `remoteDir'/data/initial `remoteDir'/data/output/data/ `remoteDir'/data/output/metadata/  `remoteDir'/data/final/data  `remoteDir'/data/final/metadata && "
-	* file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/devel/ado/_runBundle.do -P ./`remoteDir'/scripts/; "
+	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/master/ado/_runBundle.do -P ./`remoteDir'/scripts/; "
+	file write `dirsHandle' "wget -q https://raw.githubusercontent.com/goshevs/parallelize/master/imports/genericMonitor.do -P ./`remoteDir'/scripts/imports/; "
+
 	file write `dirsHandle' "echo 'Done!'"
 	file close `dirsHandle'
 	
